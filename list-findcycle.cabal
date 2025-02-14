@@ -62,7 +62,7 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  MyLib
+    exposed-modules:  Data.FindCycle
 
     -- Modules included in this library but not exported.
     -- other-modules:
