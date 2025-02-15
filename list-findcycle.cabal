@@ -104,4 +104,5 @@ test-suite list-findcycle-test
     -- Test dependencies.
     build-depends:
         base ^>=4.20.0.0,
-        list-findcycle
+        list-findcycle,
+        QuickCheck
