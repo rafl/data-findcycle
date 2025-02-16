@@ -19,14 +19,12 @@ findCycleLenFloydL xs = detectCycle 0 xs xs
         detectCycle n _ _ = (2*n, 0)
 
         findMu mu (t:ts) (m:ms)
-          | t == m = (mu, 1+findLambda m ms)
+          | t == m = (mu, findLambda 1 m ms)
           | otherwise = findMu (mu+1) ts ms
         findMu mu _ _ = (mu, 0)
 
-        findLambda m (x:xs')
-          | m == x = 0
-          | otherwise = 1+findLambda m xs'
-        findLambda _ [] = 0
+        findLambda n m (x:xs') | m /= x = findLambda (n+1) m xs'
+        findLambda n _ _ = n
 
 findCycleFloydL :: (Eq a) => [a] -> ([a], [a])
 findCycleFloydL xs = (pre, take lambda cyc)
