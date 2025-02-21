@@ -1,97 +1,91 @@
-{-# LANGUAGE BangPatterns, RecordWildCards #-}
-
 module Data.FindCycle
-  ( findCycleLenBrent
-  , findCycleBrent
-  , findCycleLenBrentL
-  , findCycleBrentL
-  , findCycleLenFloyd
-  , findCycleFloyd
-  , findCycleLenFloydL
-  , findCycleFloydL) where
+  ( CycleFinder
+  , brent
+  , floyd
+  , nivash
+  , findCycle
+  , unsafeFromList
+  , minimalMu
+  , cached
+  , extract
+  ) where
 
-import Data.Maybe (fromMaybe)
 import Data.List (uncons)
+import Data.Maybe (fromMaybe)
 import Control.Applicative ((<|>))
 
-data Input s a = Input { inpUncons :: s -> Maybe (a, s)
-                       , inpAdvance :: Int -> s -> s }
+data Input a = FuncInput (a -> a) a | ListInput [a]
 
-funcInput :: (a -> a) -> Input a a
-funcInput f = Input (\x -> Just (x, f x)) advance
-  where advance 0 !a = a
-        advance n !a = advance (n-1) (f a)
+inpUncons :: Input a -> Maybe (a, Input a)
+inpUncons (ListInput xs) = fmap ListInput <$> uncons xs
+inpUncons (FuncInput f x) = Just (x, FuncInput f (f x))
 
-listInput :: Input [a] a
-listInput = Input uncons drop
+inpAdvance :: Input a -> Int -> Input a
+inpAdvance (ListInput xs) n = ListInput (drop n xs)
+inpAdvance (FuncInput f x) n = FuncInput f (advance n x)
+  where advance 0 a = a
+        advance n' a = advance (n'-1) (f a)
 
-{-# INLINE brentLenGeneric #-}
-{-# SPECIALIZE brentLenGeneric :: (Eq a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE brentLenGeneric :: (Eq a) => Input [a] a -> [a] -> (Int, Int) #-}
-brentLenGeneric :: (Eq a) => Input s a -> s -> (Int, Int)
-brentLenGeneric Input{..} s =
+newtype CycleFinder a r = CycleFinder { runCycleFinder :: Input a -> r }
+
+brent :: (Eq a) => CycleFinder a (Int, Int)
+brent = CycleFinder $ \s ->
   maybe (0, 0) (uncurry (findLambda 1 1)) (inpUncons s)
-  where findLambda !pow !lambda t hs =
+  where findLambda pow lambda t hs =
           maybe (pow+lambda-1, 0) (uncurry go) (inpUncons hs)
           where go h hs'
-                  | t == h = (findMu 0 s (inpAdvance lambda s), lambda)
+                  | t == h = (pow, lambda)
                   | pow == lambda = findLambda (2*pow) 1 h hs'
                   | otherwise = findLambda pow (1+lambda) t hs'
-        findMu !mu ts ms =
-          fromMaybe mu $ go <$> inpUncons ts <*> inpUncons ms
-          where go (t, ts') (m, ms')
-                  | t == m = mu
-                  | otherwise = findMu (mu+1) ts' ms'
 
-findCycleLenBrent :: (Eq a) => (a -> a) -> a -> (Int, Int)
-findCycleLenBrent f = brentLenGeneric (funcInput f)
+nivash :: (Ord a) => CycleFinder a (Int, Int)
+nivash = CycleFinder $ go 0 []
+  where go i stack st = maybe (i, 0) (uncurry go') (inpUncons st)
+          where go' x st'
+                  | (sx, si) : _ <- stack', sx == x = (si, i - si)
+                  | otherwise = go (i + 1) ((x, i):stack') st'
+                  where stack' = dropWhile ((> x) . fst) stack
 
-findCycleBrent :: (Eq a) => (a -> a) -> a -> ([a], [a])
-findCycleBrent f a = findCycleBrentL (iterate f a)
-
-findCycleLenBrentL :: Eq a => [a] -> (Int, Int)
-findCycleLenBrentL = brentLenGeneric listInput
-
-findCycleBrentL :: (Eq a) => [a] -> ([a], [a])
-findCycleBrentL xs = (pre, take lambda cyc)
-  where (mu, lambda) = findCycleLenBrentL xs
-        (pre, cyc) = splitAt mu xs
-
-{-# INLINE floydLenGeneric #-}
-{-# SPECIALIZE floydLenGeneric :: (Eq a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE floydLenGeneric :: (Eq a) => Input [a] a -> [a] -> (Int, Int) #-}
-floydLenGeneric :: (Eq a) => Input s a -> s -> (Int, Int)
-floydLenGeneric Input{..} s = detectCycle 0 s s
-  where detectCycle !n ts hs =
+floyd :: (Eq a) => CycleFinder a (Int, Int)
+floyd = CycleFinder $ \s -> detectCycle 0 s s
+  where detectCycle n ts hs =
           fromMaybe (2*n, 0) $
             go <$> inpUncons ts <*> (inpUncons . snd =<< skipped)
               <|> (2*n+1, 0) <$ skipped
           where skipped = inpUncons hs
                 go (t, ts') (h, hs')
-                  | t == h = findMu 0 s ts'
+                  | t == h = (n, findLambda 1 t ts')
                   | otherwise = detectCycle (n+1) ts' hs'
-
-        findMu !mu ts ms = fromMaybe (mu, 0) $ go <$> inpUncons ts <*> inpUncons ms
-          where go (t, ts') (m, ms')
-                  | t == m = (mu, findLambda 1 m ms')
-                  | otherwise = findMu (mu+1) ts' ms'
-
-        findLambda !n m ms =
+        findLambda n m ms =
           maybe n (uncurry go) (inpUncons ms)
           where go x xs
                   | m == x = n
                   | otherwise = findLambda (n+1) m xs
 
-findCycleLenFloyd :: (Eq a) => (a -> a) -> a -> (Int, Int)
-findCycleLenFloyd f = floydLenGeneric (funcInput f)
+findCycle :: CycleFinder a r -> (a -> a) -> a -> r
+findCycle alg f x = runCycleFinder alg (FuncInput f x)
 
-findCycleFloyd :: (Eq a) => (a -> a) -> a -> ([a], [a])
-findCycleFloyd f a = findCycleFloydL (iterate f a)
+unsafeFromList :: CycleFinder a r -> [a] -> r
+unsafeFromList alg = runCycleFinder alg . ListInput
 
-findCycleLenFloydL :: (Eq a) => [a] -> (Int, Int)
-findCycleLenFloydL = floydLenGeneric listInput
+cached :: CycleFinder a r -> CycleFinder a r
+cached (CycleFinder alg) = CycleFinder cache
+  where cache s@(ListInput _) = alg s
+        cache (FuncInput f x) = alg (ListInput (iterate f x))
 
-findCycleFloydL :: (Eq a) => [a] -> ([a], [a])
-findCycleFloydL xs = (pre, take lambda cyc)
-  where (mu, lambda) = findCycleLenFloydL xs
-        (pre, cyc) = splitAt mu xs
+minimalMu :: (Eq a) => CycleFinder a (Int, Int) -> CycleFinder a (Int, Int)
+minimalMu alg = CycleFinder $ \s -> maybeFindMu s (runCycleFinder alg s)
+  where maybeFindMu s r@(_, lambda)
+          | lambda == 0 = r
+          | otherwise = (findMu 0 s (inpAdvance s lambda), lambda)
+        findMu mu ts ms =
+          fromMaybe mu $ go <$> inpUncons ts <*> inpUncons ms
+          where go (t, ts') (m, ms')
+                  | t == m = mu
+                  | otherwise = findMu (mu+1) ts' ms'
+
+extract :: (Eq a) => CycleFinder a (Int, Int) -> CycleFinder a ([a],[a])
+extract alg = CycleFinder $ \s -> extractList s (runCycleFinder alg s)
+  where extractList s (mu, lambda) = take lambda <$> splitAt mu (gatherAll s)
+        gatherAll (ListInput xs) = xs
+        gatherAll (FuncInput f x) = iterate f x
