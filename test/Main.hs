@@ -3,7 +3,6 @@
 
 import Data.FindCycle
 import Data.Foldable
-import Data.List
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe
