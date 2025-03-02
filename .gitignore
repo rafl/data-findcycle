@@ -1,3 +1,6 @@
 dist-newstyle/
 .*
 !.gitignore
+*.hi
+*.o
+cabal.project.local*
