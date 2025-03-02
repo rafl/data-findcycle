@@ -11,18 +11,37 @@
 
   This module provides a number of common algorithms and utilities to identify
   and work with such cycles.
+
 -}
 
 module Data.FindCycle
   (
+  -- * Typical Usage
+  {-|
+    The value of iterating @someCyclicFunc@ for \(10^{100}\) times from
+    @startingValue@, using the 'brent' algorithm for cycle detection:
+
+    > let fastCyclicFunc = cycleExp brent someCyclicFunc startingValue
+    > fastCyclicFunc (10^100)
+
+    The length of the non-repeating prefix and the length of the cycle, as
+    determined using the 'nivash' algorithm:
+
+    > let (mu, lambda) = findCycle nivash someCyclicFunc startingValue
+
+    The same two lengths, plus two lists containing the values of the prefix and
+    cyclic parts of the sequence using the 'naiveOrd' algorithm:
+
+    > let (mu, lambda, (pre, cyc)) = findCycleExtract naiveOrd someCyclicFunc startingValue
+
+    When you already have a list of values created by iterating a cyclic
+    function:
+
+    > let xs = iterate someCyclicFunc startingValue
+    > let (mu, lambda, (pre, cyc)) = unsafeFindCycleFromList brent xs
+  -}
   -- * CycleFinder type
   CycleFinder
-  -- * Running algorithms
-  , findCycle
-  , findCycleExtract
-  , cycleExp
-  , cycleExp'
-  , unsafeFindCycleFromList
   -- * Algorithms
   {-|
     Cycles are typically described with a pair \((\mu, \lambda)\), where
@@ -82,6 +101,12 @@ module Data.FindCycle
   , floyd
   -- ** Memory/Time Compromise
   , nivash
+  -- * Running algorithms
+  , findCycle
+  , findCycleExtract
+  , cycleExp
+  , cycleExp'
+  , unsafeFindCycleFromList
   -- * Utilities
   , minimalMu
   ) where
