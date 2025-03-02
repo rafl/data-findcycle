@@ -16,89 +16,93 @@
 module Data.FindCycle (
     -- * Typical Usage
 
-    -- |
-    -- The value of iterating @someCyclicFunc@ for \(10^{100}\) times from
-    -- @startingValue@, using the 'brent' algorithm for cycle detection:
-    --
-    -- > let fastCyclicFunc = cycleExp brent someCyclicFunc startingValue
-    -- > fastCyclicFunc (10^100)
-    --
-    -- The length of the non-repeating prefix and the length of the cycle, as
-    -- determined using the 'nivash' algorithm:
-    --
-    -- > let (mu, lambda) = findCycle nivash someCyclicFunc startingValue
-    --
-    -- The same two lengths, plus two lists containing the values of the prefix and
-    -- cyclic parts of the sequence using the 'naiveOrd' algorithm:
-    --
-    -- > let (mu, lambda, (pre, cyc)) = findCycleExtract naiveOrd someCyclicFunc startingValue
-    --
-    -- When you already have a list of values created by iterating a cyclic
-    -- function:
-    --
-    -- > let xs = iterate someCyclicFunc startingValue
-    -- > let (mu, lambda, (pre, cyc)) = unsafeFindCycleFromList brent xs
+    {- |
+       The value of iterating @someCyclicFunc@ for \(10^{100}\) times from
+       @startingValue@, using the 'brent' algorithm for cycle detection:
+
+       > let fastCyclicFunc = cycleExp brent someCyclicFunc startingValue
+       > fastCyclicFunc (10^100)
+
+       The length of the non-repeating prefix and the length of the cycle, as
+       determined using the 'nivash' algorithm:
+
+       > let (mu, lambda) = findCycle nivash someCyclicFunc startingValue
+
+       The same two lengths, plus two lists containing the values of the prefix and
+       cyclic parts of the sequence using the 'naiveOrd' algorithm:
+
+       > let (mu, lambda, (pre, cyc)) = findCycleExtract naiveOrd someCyclicFunc startingValue
+
+       When you already have a list of values created by iterating a cyclic
+       function:
+
+       > let xs = iterate someCyclicFunc startingValue
+       > let (mu, lambda, (pre, cyc)) = unsafeFindCycleFromList brent xs
+    -}
 
     -- * CycleFinder type
     CycleFinder,
 
     -- * Algorithms
 
-    -- |
-    -- Cycles are typically described with a pair \((\mu, \lambda)\), where
-    -- \(\mu\) represents the length of the non-cyclic prefix of the sequence, and
-    -- \(\lambda\) represents the length of the repeating cycle of the sequence.
-    --
-    -- The cycle finding algorithms provided by this module return such a pair as
-    -- a result, but some might return an upper bound \(\tilde{\mu}\) instead of
-    -- the minimal \(\mu\) in order to avoid the computational cost of finding the
-    -- minimal value. This approximation is acceptable in many practical cases,
-    -- such as when using 'cycleExp', which uses the cyclic behavior of a function
-    -- to efficiently compute \(f^n(x)\) for large \(n\).
-    --
-    -- When a minimal \(\mu\) is needed, it can be computed from a t'CycleFinder'
-    -- returning a non-minimal \(\tilde{\mu}\) using 'minimalMu'.
-    --
-    -- All algorithms always provide a minimal \(\lambda\) as opposed to a
-    -- multiple of the true cycle length.
-    --
-    -- In practice, you'll usually want to use 'nivash', 'brent', or one of the
-    -- naive variants. If performance matters and you're not sure what to choose,
-    -- compare the alternatives by benchmarking for your usecase.
+    {- |
+       Cycles are typically described with a pair \((\mu, \lambda)\), where
+       \(\mu\) represents the length of the non-cyclic prefix of the sequence, and
+       \(\lambda\) represents the length of the repeating cycle of the sequence.
+
+       The cycle finding algorithms provided by this module return such a pair as
+       a result, but some might return an upper bound \(\tilde{\mu}\) instead of
+       the minimal \(\mu\) in order to avoid the computational cost of finding the
+       minimal value. This approximation is acceptable in many practical cases,
+       such as when using 'cycleExp', which uses the cyclic behavior of a function
+       to efficiently compute \(f^n(x)\) for large \(n\).
+
+       When a minimal \(\mu\) is needed, it can be computed from a t'CycleFinder'
+       returning a non-minimal \(\tilde{\mu}\) using 'minimalMu'.
+
+       All algorithms always provide a minimal \(\lambda\) as opposed to a
+       multiple of the true cycle length.
+
+       In practice, you'll usually want to use 'nivash', 'brent', or one of the
+       naive variants. If performance matters and you're not sure what to choose,
+       compare the alternatives by benchmarking for your usecase.
+    -}
 
     -- ** Naive
 
-    -- |
-    -- These algorithms use Map-like structures to store the index of the first
-    -- occurrence of each value in the sequence until a duplicate is found.
-    --
-    -- They always produce the minimal \((\mu, \lambda)\).
-    --
-    -- They never iterate the sequence further than \(\mu + \lambda\) elements.
-    --
-    -- They never compute an element at a given position in the sequence more than
-    -- once.
-    --
-    -- They use memory approximately proportional to \(\mu + \lambda\).
-    --
-    -- 'naiveHashable' tends to perform slightly better and uses slightly less
-    -- memory. Both are provided for completeness and for cases where you might
-    -- not have a 'Hashable' instance or don't want to write one.
+    {- |
+       These algorithms use Map-like structures to store the index of the first
+       occurrence of each value in the sequence until a duplicate is found.
+
+       They always produce the minimal \((\mu, \lambda)\).
+
+       They never iterate the sequence further than \(\mu + \lambda\) elements.
+
+       They never compute an element at a given position in the sequence more than
+       once.
+
+       They use memory approximately proportional to \(\mu + \lambda\).
+
+       'naiveHashable' tends to perform slightly better and uses slightly less
+       memory. Both are provided for completeness and for cases where you might
+       not have a 'Hashable' instance or don't want to write one.
+    -}
     naiveOrd,
     naiveHashable,
 
     -- ** Constant Memory
 
-    -- |
-    -- These algorithms use a constant amount of memory, at the cost of having to
-    -- potentially evaluate values in the sequence more than once.
-    --
-    -- 'brent' is always better than 'floyd', and the latter is only present for
-    -- completeness and as a baseline for testing. You shouldn't use 'floyd'.
-    --
-    -- They always compute a minimal \(\lambda\), but only an upper bound
-    -- \(\tilde{\mu}\) for the cycle length. Combine with 'minimalMu' if the
-    -- minimal \(\mu\) is needed.
+    {- |
+       These algorithms use a constant amount of memory, at the cost of having to
+       potentially evaluate values in the sequence more than once.
+
+       'brent' is always better than 'floyd', and the latter is only present for
+       completeness and as a baseline for testing. You shouldn't use 'floyd'.
+
+       They always compute a minimal \(\lambda\), but only an upper bound
+       \(\tilde{\mu}\) for the cycle length. Combine with 'minimalMu' if the
+       minimal \(\mu\) is needed.
+    -}
     brent,
     floyd,
 

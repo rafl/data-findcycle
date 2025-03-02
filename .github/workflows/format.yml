@@ -1,0 +1,8 @@
+name: Format
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/run-fourmolu@v9

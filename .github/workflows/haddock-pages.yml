@@ -1,44 +1,30 @@
 name: Publish API docs
-
 on: [push, pull_request, workflow_dispatch]
-
 env:
   HADDOCK_DIR: haddock-html
   PAGES_DIR: gh-pages
-
 jobs:
-
   haddock:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-
+    - uses: actions/checkout@v4
     - name: Set up haskell
       uses: haskell-actions/setup@v2
       with:
-        ghc-version: '9.10.1'
+        ghc-version: '9.12.1'
         cabal-version: '3.14.1.1'
-
-    - name: Checkout repository content
-      uses: actions/checkout@v4
-
-    - name: Prepare cabal
-      run: cabal update
-
     - name: Generate haddock API docs
       run: cabal haddock --builddir=haddock_build --haddock-hyperlinked-source --haddock-html-location='https://hackage.haskell.org/package/$pkg-$version/docs'
-
     - name: Find generated HTML
       run: mv $(find haddock_build -wholename '*doc/html/data-findcycle' | head -n 1) $HADDOCK_DIR
-
     - name: Store generated API docs
       uses: actions/upload-pages-artifact@v3
       with:
         path: ${{ env.HADDOCK_DIR }}
-
   deploy:
     needs: haddock
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     permissions:
       pages: write
       id-token: write
@@ -46,7 +32,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
