@@ -29,7 +29,7 @@ instance Arbitrary Cycle where
     (f, x0) <- mkF mu (muPlusLambda-mu) m <$> nonZeroModM <*> nonZeroModM
     return (Cycle mu (muPlusLambda-mu) f x0)
     where
-      smoothScale s = max 1 (round $ (10**5 :: Double) ** (fromIntegral s / 120.0))
+      smoothScale s = max 1 (round $ (10**5 :: Double) ** (fromIntegral s / 100))
       mkF mu lambda m a b = (f, g 0)
         where n = fromIntegral $ mu+lambda
               g i = (a*i+b) `mod` m
