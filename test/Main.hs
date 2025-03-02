@@ -8,6 +8,7 @@ import Test.Tasty.QuickCheck
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import Data.Foldable
+import Data.Maybe
 
 data Cycle = Cycle {
   cycMu, cycLambda :: Int,
@@ -22,7 +23,7 @@ instance Arbitrary Cycle where
   arbitrary = do
     (Positive muPlusLambda) <- scale smoothScale arbitrary
     mu <- chooseInt (0, muPlusLambda-1)
-    let Just m = find (> fromIntegral muPlusLambda) primes
+    let m = fromJust $ find (> fromIntegral muPlusLambda) primes
     -- TODO: just pick using Large suchThat mod m /= 0?
     let nonZeroModM = choose (1, m-1)
     (f, x0) <- mkF mu (muPlusLambda-mu) m <$> nonZeroModM <*> nonZeroModM
@@ -103,6 +104,7 @@ prop_cycleExp alg Cycle{..} =
   where g = cycleExp alg cycF cycX0
         xs = iterate cycF cycX0
 
+prop_cycleExpsAgree :: CycleFinder Integer -> Cycle -> Property
 prop_cycleExpsAgree alg Cycle{..} =
   property $ \(NonNegative (n :: Int)) ->
     counterexample ("n=" ++ show n) $
