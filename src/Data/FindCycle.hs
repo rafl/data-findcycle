@@ -1,6 +1,7 @@
-{-# LANGUAGE RecordWildCards, RankNTypes #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 
-{-|
+{- |
   Module: Data.FindCycle
   Description: Find cycles in periodic functions (and lists)
   Copyright: (c) 2025 Florian Ragwitz
@@ -11,133 +12,139 @@
 
   This module provides a number of common algorithms and utilities to identify
   and work with such cycles.
-
 -}
+module Data.FindCycle (
+    -- * Typical Usage
 
-module Data.FindCycle
-  (
-  -- * Typical Usage
-  {-|
-    The value of iterating @someCyclicFunc@ for \(10^{100}\) times from
-    @startingValue@, using the 'brent' algorithm for cycle detection:
+    -- |
+    -- The value of iterating @someCyclicFunc@ for \(10^{100}\) times from
+    -- @startingValue@, using the 'brent' algorithm for cycle detection:
+    --
+    -- > let fastCyclicFunc = cycleExp brent someCyclicFunc startingValue
+    -- > fastCyclicFunc (10^100)
+    --
+    -- The length of the non-repeating prefix and the length of the cycle, as
+    -- determined using the 'nivash' algorithm:
+    --
+    -- > let (mu, lambda) = findCycle nivash someCyclicFunc startingValue
+    --
+    -- The same two lengths, plus two lists containing the values of the prefix and
+    -- cyclic parts of the sequence using the 'naiveOrd' algorithm:
+    --
+    -- > let (mu, lambda, (pre, cyc)) = findCycleExtract naiveOrd someCyclicFunc startingValue
+    --
+    -- When you already have a list of values created by iterating a cyclic
+    -- function:
+    --
+    -- > let xs = iterate someCyclicFunc startingValue
+    -- > let (mu, lambda, (pre, cyc)) = unsafeFindCycleFromList brent xs
 
-    > let fastCyclicFunc = cycleExp brent someCyclicFunc startingValue
-    > fastCyclicFunc (10^100)
+    -- * CycleFinder type
+    CycleFinder,
 
-    The length of the non-repeating prefix and the length of the cycle, as
-    determined using the 'nivash' algorithm:
+    -- * Algorithms
 
-    > let (mu, lambda) = findCycle nivash someCyclicFunc startingValue
+    -- |
+    -- Cycles are typically described with a pair \((\mu, \lambda)\), where
+    -- \(\mu\) represents the length of the non-cyclic prefix of the sequence, and
+    -- \(\lambda\) represents the length of the repeating cycle of the sequence.
+    --
+    -- The cycle finding algorithms provided by this module return such a pair as
+    -- a result, but some might return an upper bound \(\tilde{\mu}\) instead of
+    -- the minimal \(\mu\) in order to avoid the computational cost of finding the
+    -- minimal value. This approximation is acceptable in many practical cases,
+    -- such as when using 'cycleExp', which uses the cyclic behavior of a function
+    -- to efficiently compute \(f^n(x)\) for large \(n\).
+    --
+    -- When a minimal \(\mu\) is needed, it can be computed from a t'CycleFinder'
+    -- returning a non-minimal \(\tilde{\mu}\) using 'minimalMu'.
+    --
+    -- All algorithms always provide a minimal \(\lambda\) as opposed to a
+    -- multiple of the true cycle length.
+    --
+    -- In practice, you'll usually want to use 'nivash', 'brent', or one of the
+    -- naive variants. If performance matters and you're not sure what to choose,
+    -- compare the alternatives by benchmarking for your usecase.
 
-    The same two lengths, plus two lists containing the values of the prefix and
-    cyclic parts of the sequence using the 'naiveOrd' algorithm:
+    -- ** Naive
 
-    > let (mu, lambda, (pre, cyc)) = findCycleExtract naiveOrd someCyclicFunc startingValue
+    -- |
+    -- These algorithms use Map-like structures to store the index of the first
+    -- occurrence of each value in the sequence until a duplicate is found.
+    --
+    -- They always produce the minimal \((\mu, \lambda)\).
+    --
+    -- They never iterate the sequence further than \(\mu + \lambda\) elements.
+    --
+    -- They never compute an element at a given position in the sequence more than
+    -- once.
+    --
+    -- They use memory approximately proportional to \(\mu + \lambda\).
+    --
+    -- 'naiveHashable' tends to perform slightly better and uses slightly less
+    -- memory. Both are provided for completeness and for cases where you might
+    -- not have a 'Hashable' instance or don't want to write one.
+    naiveOrd,
+    naiveHashable,
 
-    When you already have a list of values created by iterating a cyclic
-    function:
+    -- ** Constant Memory
 
-    > let xs = iterate someCyclicFunc startingValue
-    > let (mu, lambda, (pre, cyc)) = unsafeFindCycleFromList brent xs
-  -}
-  -- * CycleFinder type
-  CycleFinder
-  -- * Algorithms
-  {-|
-    Cycles are typically described with a pair \((\mu, \lambda)\), where
-    \(\mu\) represents the length of the non-cyclic prefix of the sequence, and
-    \(\lambda\) represents the length of the repeating cycle of the sequence.
+    -- |
+    -- These algorithms use a constant amount of memory, at the cost of having to
+    -- potentially evaluate values in the sequence more than once.
+    --
+    -- 'brent' is always better than 'floyd', and the latter is only present for
+    -- completeness and as a baseline for testing. You shouldn't use 'floyd'.
+    --
+    -- They always compute a minimal \(\lambda\), but only an upper bound
+    -- \(\tilde{\mu}\) for the cycle length. Combine with 'minimalMu' if the
+    -- minimal \(\mu\) is needed.
+    brent,
+    floyd,
 
-    The cycle finding algorithms provided by this module return such a pair as
-    a result, but some might return an upper bound \(\tilde{\mu}\) instead of
-    the minimal \(\mu\) in order to avoid the computational cost of finding the
-    minimal value. This approximation is acceptable in many practical cases,
-    such as when using 'cycleExp', which uses the cyclic behavior of a function
-    to efficiently compute \(f^n(x)\) for large \(n\).
+    -- ** Memory/Time Compromise
+    nivash,
 
-    When a minimal \(\mu\) is needed, it can be computed from a t'CycleFinder'
-    returning a non-minimal \(\tilde{\mu}\) using 'minimalMu'.
+    -- * Running algorithms
+    findCycle,
+    findCycleExtract,
+    cycleExp,
+    cycleExp',
+    unsafeFindCycleFromList,
 
-    All algorithms always provide a minimal \(\lambda\) as opposed to a
-    multiple of the true cycle length.
+    -- * Utilities
+    minimalMu,
+) where
 
-    In practice, you'll usually want to use 'nivash', 'brent', or one of the
-    naive variants. If performance matters and you're not sure what to choose,
-    compare the alternatives by benchmarking for your usecase.
-  -}
-  -- ** Naive
-  {-|
-    These algorithms use Map-like structures to store the index of the first
-    occurrence of each value in the sequence until a duplicate is found.
-
-    They always produce the minimal \((\mu, \lambda)\).
-
-    They never iterate the sequence further than \(\mu + \lambda\) elements.
-
-    They never compute an element at a given position in the sequence more than
-    once.
-
-    They use memory approximately proportional to \(\mu + \lambda\).
-
-    'naiveHashable' tends to perform slightly better and uses slightly less
-    memory. Both are provided for completeness and for cases where you might
-    not have a 'Hashable' instance or don't want to write one.
-  -}
-  , naiveOrd
-  , naiveHashable
-  -- ** Constant Memory
-  {-|
-    These algorithms use a constant amount of memory, at the cost of having to
-    potentially evaluate values in the sequence more than once.
-
-    'brent' is always better than 'floyd', and the latter is only present for
-    completeness and as a baseline for testing. You shouldn't use 'floyd'.
-
-    They always compute a minimal \(\lambda\), but only an upper bound
-    \(\tilde{\mu}\) for the cycle length. Combine with 'minimalMu' if the
-    minimal \(\mu\) is needed.
-  -}
-  , brent
-  , floyd
-  -- ** Memory/Time Compromise
-  , nivash
-  -- * Running algorithms
-  , findCycle
-  , findCycleExtract
-  , cycleExp
-  , cycleExp'
-  , unsafeFindCycleFromList
-  -- * Utilities
-  , minimalMu
-  ) where
-
-import Data.List (uncons)
-import Data.Maybe (fromMaybe, fromJust)
 import Control.Applicative ((<|>))
-import qualified Data.Map.Strict as M
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable (Hashable)
+import Data.List (uncons)
+import qualified Data.Map.Strict as M
+import Data.Maybe (fromJust, fromMaybe)
 
-data Input s a = Input {
-  inpUncons :: s -> Maybe (a, s),
-  inpAdvance :: Int -> s -> s
-}
+data Input s a = Input
+    { inpUncons :: s -> Maybe (a, s)
+    , inpAdvance :: Int -> s -> s
+    }
 
 funcInput :: (a -> a) -> Input a a
 funcInput f = Input (\x -> Just (x, f x)) advance
-  where advance 0 a = a
-        advance n a = advance (n-1) (f a)
+  where
+    advance 0 a = a
+    advance n a = advance (n - 1) (f a)
 
 listInput :: Input [a] a
 listInput = Input uncons drop
 
--- | An algorithm to find the cycle in a function from @a@ to @a@
---   (or a list of @a@s).
-newtype CycleFinder a = CycleFinder {
-  runCycleFinder :: forall s. Input s a -> s -> (Int, Int)
-}
+{- |
+  An algorithm to find the cycle in a function from @a@ to @a@ (or a list of @a@s).
+-}
+newtype CycleFinder a = CycleFinder
+    { runCycleFinder :: forall s. Input s a -> s -> (Int, Int)
+    }
 
-{-|
+{- |
   Runs a t'CycleFinder' algorithm for the given function and starting value,
   returning a pair \((\mu, \lambda)\) representing the length of the
   non-cyclic prefix and the length of the cycle of the sequence.
@@ -148,9 +155,9 @@ findCycle alg f = runCycleFinder alg (funcInput f)
 extract :: Int -> Int -> [a] -> ([a], [a])
 extract mu lambda = fmap (take lambda) . splitAt mu
 
-{-|
+{- |
   Like 'findCycle', but also returns a third value @(pre, cyc)@ such that
-  
+
   > pre ++ cycle cyc == iterate f x
 
   In addition to extracting the prefix and cyclic part of the list, this can
@@ -164,10 +171,11 @@ extract mu lambda = fmap (take lambda) . splitAt mu
 -}
 findCycleExtract :: CycleFinder a -> (a -> a) -> a -> (Int, Int, ([a], [a]))
 findCycleExtract alg f x = (mu, lambda, extract mu lambda xs)
-  where xs = iterate f x
-        (mu, lambda) = runCycleFinder alg listInput xs
+  where
+    xs = iterate f x
+    (mu, lambda) = runCycleFinder alg listInput xs
 
-{-|
+{- |
   Runs the t'CycleFinder' for a given input list.
 
   This function is provided as a convenience for when you already have a list
@@ -196,18 +204,21 @@ findCycleExtract alg f x = (mu, lambda, extract mu lambda xs)
 -}
 unsafeFindCycleFromList :: CycleFinder a -> [a] -> (Int, Int, ([a], [a]))
 unsafeFindCycleFromList alg xs = (mu, lambda, extract mu lambda xs)
-  where (mu, lambda) = runCycleFinder alg listInput xs
+  where
+    (mu, lambda) = runCycleFinder alg listInput xs
 
 {-# INLINE cycleExpWith #-}
 cycleExpWith :: CycleFinder a -> Input s a -> s -> Integer -> a
 cycleExpWith alg inp@Input{..} s n =
-  fromJust $ fst <$> inpUncons (inpAdvance (fromIntegral ix) s)
-  where (mu, lambda) = runCycleFinder alg inp s
-        (mu', lambda') = (fromIntegral mu, fromIntegral lambda)
-        ix | n < mu' = n
-           | otherwise = mu' + ((n - mu') `mod` lambda')
+    fromJust $ fst <$> inpUncons (inpAdvance (fromIntegral ix) s)
+  where
+    (mu, lambda) = runCycleFinder alg inp s
+    (mu', lambda') = (fromIntegral mu, fromIntegral lambda)
+    ix
+        | n < mu' = n
+        | otherwise = mu' + ((n - mu') `mod` lambda')
 
-{-|
+{- |
   Constructs an efficient evaluator for a cyclic function by "exponentiating" it.
   Given a t'CycleFinder' for a function @f@ and an initial value @x@, it returns
   a function of type @Integer -> a@ which computes the nth iterate (i.e. the
@@ -250,19 +261,20 @@ cycleExp alg f x = cycleExpWith alg listInput (iterate f x)
 cycleExp' :: CycleFinder a -> (a -> a) -> a -> Integer -> a
 cycleExp' alg f = cycleExpWith alg (funcInput f)
 
-data NaiveContainer m a = NaiveContainer {
-  emptyC :: m,
-  lookupC :: a -> m -> Maybe Int,
-  insertC :: a -> Int -> m -> m
-}
+data NaiveContainer m a = NaiveContainer
+    { emptyC :: m
+    , lookupC :: a -> m -> Maybe Int
+    , insertC :: a -> Int -> m -> m
+    }
 
 {-# INLINE naive #-}
 naive :: NaiveContainer m a -> Input s a -> s -> (Int, Int)
 naive NaiveContainer{..} Input{..} = go 0 emptyC . inpUncons
-  where go i _ Nothing = (i, 0)
-        go i m (Just (x, xs))
-          | Just j <- lookupC x m = (j, i-j)
-          | otherwise = go (i+1) (insertC x i m) (inpUncons xs)
+  where
+    go i _ Nothing = (i, 0)
+    go i m (Just (x, xs))
+        | Just j <- lookupC x m = (j, i - j)
+        | otherwise = go (i + 1) (insertC x i m) (inpUncons xs)
 
 {-# SPECIALIZE naiveOrd' :: (Ord a) => Input a a -> a -> (Int, Int) #-}
 {-# SPECIALIZE naiveOrd' :: (Ord a) => Input [a] a -> [a] -> (Int, Int) #-}
@@ -287,14 +299,16 @@ naiveHashable = CycleFinder naiveHashable'
 {-# SPECIALIZE brent' :: (Eq a) => Input [a] a -> [a] -> (Int, Int) #-}
 brent' :: (Eq a) => Input s a -> s -> (Int, Int)
 brent' Input{..} = maybe (0, 0) (uncurry (findLambda 1 1)) . inpUncons
-  where findLambda pow lambda t hs =
-          maybe (pow+lambda-1, 0) (uncurry go) (inpUncons hs)
-          where go h hs'
-                  | t == h = (pow, lambda)
-                  | pow == lambda = findLambda (2*pow) 1 h hs'
-                  | otherwise = findLambda pow (1+lambda) t hs'
+  where
+    findLambda pow lambda t hs =
+        maybe (pow + lambda - 1, 0) (uncurry go) (inpUncons hs)
+      where
+        go h hs'
+            | t == h = (pow, lambda)
+            | pow == lambda = findLambda (2 * pow) 1 h hs'
+            | otherwise = findLambda pow (1 + lambda) t hs'
 
-{-|
+{- |
   Brent's cycle finding algorithm.
 
   Evaluates at most \(2(\mu + \lambda)\) elements of the sequence.
@@ -314,15 +328,18 @@ brent = CycleFinder brent'
 --       function as an extra argument. this version can use (const 0).
 nivash' :: (Ord a) => Input s a -> s -> (Int, Int)
 nivash' Input{..} = go 0 []
-  where go i stack = maybe (i, 0) (uncurry go') . inpUncons
-          where go' x s
-                  | (sx, si) : _ <- stack', sx == x = (si, i - si)
-                  | otherwise = go (i+1) ((x, i):stack') s
-                  where stack' = dropWhile ((> x) . fst) stack
+  where
+    go i stack = maybe (i, 0) (uncurry go') . inpUncons
+      where
+        go' x s
+            | (sx, si) : _ <- stack', sx == x = (si, i - si)
+            | otherwise = go (i + 1) ((x, i) : stack') s
+          where
+            stack' = dropWhile ((> x) . fst) stack
 
 -- TODO: Gosper? maybe not really that useful in practice.
 
-{-|
+{- |
   Nivash's cycle finding algorithm.
 
   Never computes an element at a given position in the sequence more than once.
@@ -346,21 +363,24 @@ nivash = CycleFinder nivash'
 {-# SPECIALIZE floyd' :: (Eq a) => Input [a] a -> [a] -> (Int, Int) #-}
 floyd' :: (Eq a) => Input s a -> s -> (Int, Int)
 floyd' Input{..} s = detectCycle 0 s s
-  where detectCycle n ts hs =
-          fromMaybe (2*n, 0) $
+  where
+    detectCycle n ts hs =
+        fromMaybe (2 * n, 0) $
             go <$> inpUncons ts <*> (inpUncons . snd =<< skipped)
-              <|> (2*n+1, 0) <$ skipped
-          where skipped = inpUncons hs
-                go (t, ts') (h, hs')
-                  | t == h = (n, findLambda 1 t ts')
-                  | otherwise = detectCycle (n+1) ts' hs'
-        findLambda n m ms =
-          maybe n (uncurry go) (inpUncons ms)
-          where go x xs
-                  | m == x = n
-                  | otherwise = findLambda (n+1) m xs
+                <|> (2 * n + 1, 0) <$ skipped
+      where
+        skipped = inpUncons hs
+        go (t, ts') (h, hs')
+            | t == h = (n, findLambda 1 t ts')
+            | otherwise = detectCycle (n + 1) ts' hs'
+    findLambda n m ms =
+        maybe n (uncurry go) (inpUncons ms)
+      where
+        go x xs
+            | m == x = n
+            | otherwise = findLambda (n + 1) m xs
 
-{-|
+{- |
   Floyd's / Tortoise and Hare cycle finding algorithm.
 
   Always worse than 'brent'. Don't use this.
@@ -370,7 +390,7 @@ floyd' Input{..} s = detectCycle 0 s s
 floyd :: (Eq a) => CycleFinder a
 floyd = CycleFinder floyd'
 
-{-|
+{- |
   Compute a minimal result \((\mu, \lambda)\) from a partial result
   \((\tilde{\mu}, \lambda)\).
 
@@ -381,12 +401,15 @@ floyd = CycleFinder floyd'
 -}
 minimalMu :: (Eq a) => CycleFinder a -> CycleFinder a
 minimalMu alg = CycleFinder go
-  where go inp@Input{..} s = maybeFindMu (runCycleFinder alg inp s)
-          where maybeFindMu r@(_, lambda)
-                  | lambda == 0 = r
-                  | otherwise = (findMu 0 s (inpAdvance lambda s), lambda)
-                findMu mu ts ms =
-                  fromMaybe mu $ go' <$> inpUncons ts <*> inpUncons ms
-                  where go' (t, ts') (m, ms')
-                          | t == m = mu
-                          | otherwise = findMu (mu+1) ts' ms'
+  where
+    go inp@Input{..} s = maybeFindMu (runCycleFinder alg inp s)
+      where
+        maybeFindMu r@(_, lambda)
+            | lambda == 0 = r
+            | otherwise = (findMu 0 s (inpAdvance lambda s), lambda)
+        findMu mu ts ms =
+            fromMaybe mu $ go' <$> inpUncons ts <*> inpUncons ms
+          where
+            go' (t, ts') (m, ms')
+                | t == m = mu
+                | otherwise = findMu (mu + 1) ts' ms'
