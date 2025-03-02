@@ -210,7 +210,7 @@ unsafeFindCycleFromList alg xs = (mu, lambda, extract mu lambda xs)
 {-# INLINE cycleExpWith #-}
 cycleExpWith :: CycleFinder a -> Input s a -> s -> Integer -> a
 cycleExpWith alg inp@Input{..} s n =
-    fromJust $ fst <$> inpUncons (inpAdvance (fromIntegral ix) s)
+    fst . fromJust . inpUncons $ inpAdvance (fromIntegral ix) s
   where
     (mu, lambda) = runCycleFinder alg inp s
     (mu', lambda') = (fromIntegral mu, fromIntegral lambda)
