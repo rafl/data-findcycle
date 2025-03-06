@@ -120,12 +120,13 @@ module Data.FindCycle (
     minimalMu,
 ) where
 
-import Control.Applicative ((<|>))
+import Control.Applicative ((<*>), (<|>))
+import Data.Functor ((<$), (<$>))
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable (Hashable)
-import Data.List (uncons)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, fromMaybe)
+import Prelude hiding ((<$), (<$>), (<*>))
 
 data Input s a = Input
     { inpUncons :: s -> Maybe (a, s)
@@ -140,6 +141,9 @@ funcInput f = Input (\x -> Just (x, f x)) advance
 
 listInput :: Input [a] a
 listInput = Input uncons drop
+  where
+    uncons [] = Nothing
+    uncons (x : xs) = Just (x, xs)
 
 {- |
   An algorithm to find the cycle in a function from @a@ to @a@ (or a list of @a@s).
@@ -289,13 +293,13 @@ naiveOrd' = naive (NaiveContainer M.empty M.lookup M.insert)
 naiveOrd :: (Ord a) => CycleFinder a
 naiveOrd = CycleFinder naiveOrd'
 
-{-# SPECIALIZE naiveHashable' :: (Hashable a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE naiveHashable' :: (Hashable a) => Input [a] a -> [a] -> (Int, Int) #-}
-naiveHashable' :: (Hashable a) => Input s a -> s -> (Int, Int)
+{-# SPECIALIZE naiveHashable' :: (Eq a, Hashable a) => Input a a -> a -> (Int, Int) #-}
+{-# SPECIALIZE naiveHashable' :: (Eq a, Hashable a) => Input [a] a -> [a] -> (Int, Int) #-}
+naiveHashable' :: (Eq a, Hashable a) => Input s a -> s -> (Int, Int)
 naiveHashable' = naive (NaiveContainer HM.empty HM.lookup HM.insert)
 
 -- | Naive cycle finding algorithm using t'Data.HashMap.Strict.HashMap'.
-naiveHashable :: (Hashable a) => CycleFinder a
+naiveHashable :: (Eq a, Hashable a) => CycleFinder a
 naiveHashable = CycleFinder naiveHashable'
 
 {-# INLINE brent' #-}

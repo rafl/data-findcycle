@@ -1,0 +1,59 @@
+name: Run LTS tests
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  snapshots:
+    name: Get snapshots
+    runs-on: ubuntu-latest
+    outputs:
+      snapshots: ${{ steps.snapshots.outputs.snapshots }}
+    steps:
+      - id: snapshots
+        run: |
+          echo -n 'snapshots=' >"$GITHUB_OUTPUT"
+          curl -s https://www.stackage.org/download/snapshots.json |jq -c '
+            [to_entries[] | select(.key != "lts") | .key as $k | .value as $v
+              | ($k | sub("^lts-"; "") | tonumber? // null) as $n
+              | { n: $n,
+                  name: $v,
+                  # linking against librt.so somehow fails on newer versions.
+                  # no idea why
+                  os: (if $k == "nightly" or $n >= 7
+                       then "ubuntu-latest"
+                       else "ubuntu-22.04" end),
+                  # older versions of stack to support older versions of cabal
+                  # in the snapshots
+                  stack: (if $k == "nightly" or $n >= 12 then "latest"
+                          elif $n >= 7 then "2.15"
+                          elif $n >= 3 then "2.11"
+                          else "1.9" end)
+                }
+              # somehow there is no bindist for 7.8.3? we could maybe use
+              # ghcup to get it, but whatever
+              | if $n == 0 then . + {args: "--compiler ghc-7.8.4"} else . end
+            ] | sort_by(-(.n // 1e5))' >>"$GITHUB_OUTPUT"
+  build:
+    needs: snapshots
+    strategy:
+      fail-fast: false
+      matrix:
+        snapshot: ${{ fromJSON(needs.snapshots.outputs.snapshots) }}
+    name: ${{ matrix.snapshot.name }}
+    runs-on: ${{ matrix.snapshot.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: ${{ matrix.snapshot.stack }}
+      - run: |
+          cat <<EOF >stack.yaml
+          # older versions of stack hardcode some dead AWS URL.
+          # causes warnings on some versions, but we can always make it
+          # conditional later if it ever causes problems.
+          latest-snapshot-url: https://www.stackage.org/download/snapshots.json
+          resolver: ${{ matrix.snapshot.name }}
+          packages: ['.']
+          EOF
+      - name: Test
+        run: stack test --test-arguments='+RTS -N -RTS --quickcheck-tests 1000 --quickcheck-max-size 120' ${{ matrix.snapshot.args }}

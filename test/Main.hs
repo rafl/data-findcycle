@@ -1,14 +1,15 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+import Control.Applicative ((<*>))
 import Data.FindCycle
-import Data.Foldable
-import Data.List.NonEmpty (NonEmpty (..))
-import qualified Data.List.NonEmpty as NE
+import Data.Foldable (find)
+import Data.Functor ((<$>))
 import Data.Maybe
 import Data.Numbers.Primes
 import Test.Tasty
 import Test.Tasty.QuickCheck
+import Prelude hiding ((<$>), (<*>))
 
 data Cycle = Cycle
     { cycMu, cycLambda :: Int
@@ -21,14 +22,15 @@ instance Show Cycle where
 
 instance Arbitrary Cycle where
     arbitrary = do
-        (Positive muPlusLambda) <- scale smooth arbitrary
-        mu <- chooseInt (0, muPlusLambda - 1)
+        (Positive muPlusLambda) <- scaled smooth arbitrary
+        mu <- choose (0, muPlusLambda - 1)
         let m = fromJust $ find (> fromIntegral muPlusLambda) primes
         -- TODO: just pick using Large suchThat mod m /= 0?
         let nonZeroModM = choose (1, m - 1)
         (f, x0) <- mkF mu (muPlusLambda - mu) m <$> nonZeroModM <*> nonZeroModM
         return (Cycle mu (muPlusLambda - mu) f x0)
       where
+        scaled f g = sized $ \x -> resize (f x) g
         smooth s = max 1 (round $ (10 ** 5 :: Double) ** (fromIntegral s / 100))
         mkF mu lambda m a b = (f, g 0)
           where
@@ -44,42 +46,36 @@ instance Arbitrary Cycle where
           where
             a = x - modInv (y `mod` x) x
 
-totalAlgs :: NonEmpty (String, CycleFinder Integer)
+totalAlgs :: [(String, CycleFinder Integer)]
 totalAlgs =
-    NE.fromList
-        [ ("naiveHashable", naiveHashable)
-        , ("naiveOrd", naiveOrd)
-        ]
+    [ ("naiveHashable", naiveHashable)
+    , ("naiveOrd", naiveOrd)
+    ]
 
-partialAlgs :: NonEmpty (String, CycleFinder Integer)
+partialAlgs :: [(String, CycleFinder Integer)]
 partialAlgs =
-    NE.fromList
-        [ ("nivash", nivash)
-        , ("brent", brent)
-        , ("floyd", floyd)
-        ]
+    [ ("nivash", nivash)
+    , ("brent", brent)
+    , ("floyd", floyd)
+    ]
 
 defAlg :: CycleFinder Integer
-defAlg = snd (NE.head partialAlgs)
+defAlg = nivash
 
 type Runner r = Cycle -> r
 type Extractor = Runner (Int, Int, ([Integer], [Integer]))
 
-extractors :: NonEmpty (String, CycleFinder Integer -> Extractor)
-extractors =
-    NE.fromList
-        [
-            ( "findCycleExtract"
-            , \alg Cycle{..} -> findCycleExtract alg cycF cycX0
-            )
-        ,
-            ( "unsafeFindCycleFromList"
-            , \alg Cycle{..} -> unsafeFindCycleFromList alg (iterate cycF cycX0)
-            )
-        ]
-
 defExtractor :: CycleFinder Integer -> Extractor
-defExtractor = snd (NE.head extractors)
+defExtractor alg Cycle{..} = findCycleExtract alg cycF cycX0
+
+extractors :: [(String, CycleFinder Integer -> Extractor)]
+extractors =
+    [ ("findCycleExtract", defExtractor)
+    ,
+        ( "unsafeFindCycleFromList"
+        , \alg Cycle{..} -> unsafeFindCycleFromList alg (iterate cycF cycX0)
+        )
+    ]
 
 discardExtract :: Runner (a, a, b) -> Runner (a, a)
 discardExtract f c = (mu, lambda)
@@ -138,14 +134,14 @@ tests :: TestTree
 tests =
     testGroup
         "Data.FindCycle minimal tests"
-        [ let (name, alg) :| _ = totalAlgs
+        [ let (name, alg) : _ = totalAlgs
           in testProperty
                 (name ++ " is correct")
                 (prop_algCorrect alg)
         , testGroup
             "All total algorithms agree"
             [ testProperty (refName ++ " ~ " ++ name) (prop_algsAgree refAlg alg)
-            | let ((refName, refAlg) :| algs) = totalAlgs
+            | let ((refName, refAlg) : algs) = totalAlgs
             , (name, alg) <- algs
             ]
         , testGroup
@@ -153,13 +149,13 @@ tests =
             [ testProperty
                 (refName ++ " ~ minimalMu " ++ algName)
                 (prop_algsAgree refAlg (minimalMu alg))
-            | let ((refName, refAlg) :| _) = totalAlgs
-            , (algName, alg) <- toList partialAlgs
+            | let ((refName, refAlg) : _) = totalAlgs
+            , (algName, alg) <- partialAlgs
             ]
         , testGroup
             "mu upper bound for partial"
             [ testProperty name (prop_muUpperBound alg)
-            | (name, alg) <- toList partialAlgs
+            | (name, alg) <- partialAlgs
             ]
         , testProperty
             "minimalMu is idempotent"
@@ -169,7 +165,7 @@ tests =
             [ testProperty
                 (refName ++ " ~ " ++ rName)
                 (prop_runnersAgree (refR defAlg) (r defAlg))
-            | let ((refName, refR) :| rs) = extractors
+            | let ((refName, refR) : rs) = extractors
             , (rName, r) <- rs
             ]
         , testProperty
@@ -184,7 +180,7 @@ tests =
         , testGroup
             "finite lists"
             [ testProperty name (prop_finite alg)
-            | (name, alg) <- concat [toList totalAlgs, toList partialAlgs]
+            | (name, alg) <- totalAlgs ++ partialAlgs
             ]
         ]
 
