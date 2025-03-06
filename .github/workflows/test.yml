@@ -20,6 +20,7 @@ jobs:
           - '9.8'
           - '9.10'
           - '9.12'
+          - latest-nightly
         os: [ubuntu-latest]
     name: ${{ matrix.os }} / GHC ${{ matrix.ghc }}
     steps:
@@ -28,6 +29,6 @@ jobs:
         uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
-          cabal-version: ${{ matrix.cabal }}
+          ghcup-release-channel: https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml
       - name: Test
         run: cabal test --test-options='+RTS -N -RTS --quickcheck-tests 1000 --quickcheck-max-size 120'
