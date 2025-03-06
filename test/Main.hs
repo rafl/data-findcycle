@@ -184,7 +184,7 @@ tests =
         , testGroup
             "finite lists"
             [ testProperty name (prop_finite alg)
-            | (name, alg) <- toList (totalAlgs <> partialAlgs)
+            | (name, alg) <- concat [toList totalAlgs, toList partialAlgs]
             ]
         ]
 
