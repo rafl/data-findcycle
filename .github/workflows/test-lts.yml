@@ -62,5 +62,14 @@ jobs:
           resolver: ${{ matrix.snapshot.name }}
           packages: ['.']
           EOF
+      # We hide some stuff that's part of Prelude in new versions and explicitly
+      # import them from their respective modules instead, so that we can run on
+      # old versions where Prelude doesn't have those symbols yet. However, that
+      # causes warnings when hiding symbols which aren't exported in those old
+      # versions, which we suppress here.
       - name: Test
-        run: stack test --test-arguments='+RTS -N -RTS --quickcheck-tests 1000 --quickcheck-max-size 120' ${{ matrix.snapshot.args }}
+        run: |
+          stack test \
+            --ghc-options='-fno-warn-dodgy-imports' \
+            ${{ matrix.snapshot.args }} \
+            --test-arguments='+RTS -N -RTS --quickcheck-tests 1000 --quickcheck-max-size 120'
