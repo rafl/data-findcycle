@@ -3,13 +3,13 @@
 
 import Control.Applicative ((<*>))
 import Data.FindCycle
-import Data.Foldable (find)
+import Data.Foldable (Foldable, find, foldMap, toList)
 import Data.Functor ((<$>))
 import Data.Maybe
 import Data.Numbers.Primes
 import Test.Tasty
 import Test.Tasty.QuickCheck
-import Prelude hiding ((<$>), (<*>))
+import Prelude hiding (Foldable, foldMap, (<$>), (<*>))
 
 data Cycle = Cycle
     { cycMu, cycLambda :: Int
@@ -46,36 +46,48 @@ instance Arbitrary Cycle where
           where
             a = x - modInv (y `mod` x) x
 
-totalAlgs :: [(String, CycleFinder Integer)]
-totalAlgs =
-    [ ("naiveHashable", naiveHashable)
-    , ("naiveOrd", naiveOrd)
-    ]
+data AlgClass a = AlgClass {algDef :: a, algAlt :: [a]}
+instance Foldable AlgClass where
+    foldMap f AlgClass{..} = foldMap f (algDef : algAlt)
 
-partialAlgs :: [(String, CycleFinder Integer)]
+data Labeled a = Labeled String a
+
+totalAlgs :: AlgClass (Labeled (CycleFinder Integer))
+totalAlgs =
+    AlgClass
+        (Labeled "naiveHashable" naiveHashable)
+        [Labeled "naiveOrd" naiveOrd]
+
+partialAlgs :: AlgClass (Labeled (CycleFinder Integer))
 partialAlgs =
-    [ ("nivash", nivash)
-    , ("brent", brent)
-    , ("floyd", floyd)
-    ]
+    AlgClass
+        (Labeled "nivash" nivash)
+        [ Labeled "brent" brent
+        , Labeled "floyd" floyd
+        ]
 
 defAlg :: CycleFinder Integer
-defAlg = nivash
+defAlg = alg
+  where
+    AlgClass (Labeled _ alg) _ = partialAlgs
 
 type Runner r = Cycle -> r
 type Extractor = Runner (Int, Int, ([Integer], [Integer]))
 
-defExtractor :: CycleFinder Integer -> Extractor
-defExtractor alg Cycle{..} = findCycleExtract alg cycF cycX0
-
-extractors :: [(String, CycleFinder Integer -> Extractor)]
+extractors :: AlgClass (Labeled (CycleFinder Integer -> Extractor))
 extractors =
-    [ ("findCycleExtract", defExtractor)
-    ,
-        ( "unsafeFindCycleFromList"
-        , \alg Cycle{..} -> unsafeFindCycleFromList alg (iterate cycF cycX0)
-        )
-    ]
+    AlgClass
+        (Labeled "findCycleExtract" findExtract)
+        [Labeled "unsafeFindCycleFromList" unsafeFromList]
+  where
+    findExtract alg Cycle{..} = findCycleExtract alg cycF cycX0
+    unsafeFromList alg Cycle{..} =
+        unsafeFindCycleFromList alg (iterate cycF cycX0)
+
+defExtractor :: CycleFinder Integer -> Extractor
+defExtractor = alg
+  where
+    AlgClass (Labeled _ alg) _ = extractors
 
 discardExtract :: Runner (a, a, b) -> Runner (a, a)
 discardExtract f c = (mu, lambda)
@@ -134,28 +146,28 @@ tests :: TestTree
 tests =
     testGroup
         "Data.FindCycle minimal tests"
-        [ let (name, alg) : _ = totalAlgs
+        [ let AlgClass (Labeled name alg) _ = totalAlgs
           in testProperty
                 (name ++ " is correct")
                 (prop_algCorrect alg)
         , testGroup
             "All total algorithms agree"
             [ testProperty (refName ++ " ~ " ++ name) (prop_algsAgree refAlg alg)
-            | let ((refName, refAlg) : algs) = totalAlgs
-            , (name, alg) <- algs
+            | let AlgClass (Labeled refName refAlg) algs = totalAlgs
+            , Labeled name alg <- algs
             ]
         , testGroup
             "Total agrees with minimalMu of partial"
             [ testProperty
                 (refName ++ " ~ minimalMu " ++ algName)
                 (prop_algsAgree refAlg (minimalMu alg))
-            | let ((refName, refAlg) : _) = totalAlgs
-            , (algName, alg) <- partialAlgs
+            | let AlgClass (Labeled refName refAlg) _ = totalAlgs
+            , Labeled algName alg <- toList partialAlgs
             ]
         , testGroup
             "mu upper bound for partial"
             [ testProperty name (prop_muUpperBound alg)
-            | (name, alg) <- partialAlgs
+            | Labeled name alg <- toList partialAlgs
             ]
         , testProperty
             "minimalMu is idempotent"
@@ -165,8 +177,8 @@ tests =
             [ testProperty
                 (refName ++ " ~ " ++ rName)
                 (prop_runnersAgree (refR defAlg) (r defAlg))
-            | let ((refName, refR) : rs) = extractors
-            , (rName, r) <- rs
+            | let AlgClass (Labeled refName refR) rs = extractors
+            , Labeled rName r <- rs
             ]
         , testProperty
             "findCycle agrees with extractors"
@@ -180,7 +192,7 @@ tests =
         , testGroup
             "finite lists"
             [ testProperty name (prop_finite alg)
-            | (name, alg) <- totalAlgs ++ partialAlgs
+            | Labeled name alg <- toList totalAlgs ++ toList partialAlgs
             ]
         ]
 
