@@ -15,10 +15,10 @@ extra-doc-files:    CHANGELOG.md
 library
     exposed-modules:  Data.FindCycle
     build-depends:
-        base,
-        containers,
-        hashable,
-        unordered-containers
+        base >= 4.7 && < 4.23,
+        containers >= 0.5 && < 0.9,
+        hashable >= 1.2 && < 1.6,
+        unordered-containers >= 0.2 && < 0.3
     hs-source-dirs:   src
     default-language: Haskell2010
     ghc-options: -Wall
@@ -31,8 +31,8 @@ test-suite data-findcycle-test
     build-depends:
         base,
         data-findcycle,
-        QuickCheck,
-        primes,
-        tasty,
-        tasty-quickcheck
+        QuickCheck >= 2.7 && < 2.16,
+        primes >= 0.2 && < 0.3,
+        tasty >= 0.10 && < 1.6,
+        tasty-quickcheck >= 0.8 && < 0.12
     ghc-options: -Wall -threaded -rtsopts
