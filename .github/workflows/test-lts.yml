@@ -15,6 +15,7 @@ jobs:
               | ($k | sub("^lts-"; "") | tonumber? // null) as $n
               | { ltsver: $n,
                   name: $v,
+                  hacklibc: ($n != null and $n < 7),
                   # older versions of stack to support older versions of cabal
                   # in the snapshots
                   stack: (if $k == "nightly" or $n >= 12 then "latest"
@@ -52,7 +53,7 @@ jobs:
             so="${f%%.so.*}.so"
             [ ! -e "$so" ] && sudo ln -s "$f" "$so"
           done
-        if: ${{ matrix.snapshot.ltsver < 7 }}
+        if: ${{ matrix.snapshot.hacklibc }}
       - run: |
           cat <<EOF >stack.yaml
           # older versions of stack hardcode some dead AWS URL.
