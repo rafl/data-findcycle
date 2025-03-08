@@ -13,13 +13,8 @@ jobs:
           curl -s https://www.stackage.org/download/snapshots.json |jq -c '
             [to_entries[] | select(.key != "lts") | .key as $k | .value as $v
               | ($k | sub("^lts-"; "") | tonumber? // null) as $n
-              | { n: $n,
+              | { ltsver: $n,
                   name: $v,
-                  # linking against librt.so somehow fails on newer versions.
-                  # no idea why
-                  os: (if $k == "nightly" or $n >= 7
-                       then "ubuntu-latest"
-                       else "ubuntu-22.04" end),
                   # older versions of stack to support older versions of cabal
                   # in the snapshots
                   stack: (if $k == "nightly" or $n >= 12 then "latest"
@@ -30,7 +25,7 @@ jobs:
               # somehow there is no bindist for 7.8.3? we could maybe use
               # ghcup to get it, but whatever
               | if $n == 0 then . + {args: "--compiler ghc-7.8.4"} else . end
-            ] | sort_by(-(.n // 1e5))' >>"$GITHUB_OUTPUT"
+            ] | sort_by(-(.ltsver // 1e5))' >>"$GITHUB_OUTPUT"
   build:
     needs: snapshots
     strategy:
@@ -38,7 +33,7 @@ jobs:
       matrix:
         snapshot: ${{ fromJSON(needs.snapshots.outputs.snapshots) }}
     name: ${{ matrix.snapshot.name }}
-    runs-on: ${{ matrix.snapshot.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup Haskell
@@ -46,6 +41,18 @@ jobs:
         with:
           enable-stack: true
           stack-version: ${{ matrix.snapshot.stack }}
+      # looks like a bunch of things like librt, libdl, libpthreads, etc, have
+      # been folded into libc.so itself upstream, but some of the older haskell
+      # toolchain stuff we wanna test apparently still expects the separate
+      # libs. librt.so.1 still exists, presumably for compatibility with older
+      # binaries, but libc6-dev no longer provides the .so symlinks. we just
+      # hack around it by making them ourselves.
+      - run: |
+          dpkg -L libc6 |grep '/lib/.*\.so\.' |while read f; do
+            so="${f%%.so.*}.so"
+            [ ! -e "$so" ] && sudo ln -s "$f" "$so"
+          done
+        if: ${{ matrix.snapshot.ltsver < 7 }}
       - run: |
           cat <<EOF >stack.yaml
           # older versions of stack hardcode some dead AWS URL.
