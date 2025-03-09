@@ -275,7 +275,6 @@ data NaiveContainer m a = NaiveContainer
     , insertC :: a -> Int -> m -> m
     }
 
-{-# INLINE naive #-}
 naive :: NaiveContainer m a -> Input s a -> s -> (Int, Int)
 naive NaiveContainer{..} Input{..} = go 0 emptyC . inpUncons
   where
@@ -284,7 +283,6 @@ naive NaiveContainer{..} Input{..} = go 0 emptyC . inpUncons
         | Just j <- lookupC x m = (j, i - j)
         | otherwise = go (i + 1) (insertC x i m) (inpUncons xs)
 
-{-# INLINE naiveOrd' #-}
 naiveOrd' :: (Ord a) => Input s a -> s -> (Int, Int)
 naiveOrd' = naive (NaiveContainer M.empty M.lookup M.insert)
 
@@ -292,7 +290,6 @@ naiveOrd' = naive (NaiveContainer M.empty M.lookup M.insert)
 naiveOrd :: (Ord a) => CycleFinder a
 naiveOrd = CycleFinder naiveOrd'
 
-{-# INLINE naiveHashable' #-}
 naiveHashable' :: (Eq a, Hashable a) => Input s a -> s -> (Int, Int)
 naiveHashable' = naive (NaiveContainer HM.empty HM.lookup HM.insert)
 
