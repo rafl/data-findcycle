@@ -31,4 +31,8 @@ jobs:
           ghc-version: ${{ matrix.ghc.version }}
           ghcup-release-channel: https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml
       - name: Test
-        run: cabal test --test-options='+RTS -N -RTS --quickcheck-tests 1000 --quickcheck-max-size 120' ${{ matrix.ghc.cabal-args }}
+        run: |
+          cabal test \
+            --ghc-options='-Werror' \
+            ${{ matrix.ghc.cabal-args }} \
+            --test-options='+RTS -N -RTS --quickcheck-tests 1000 --quickcheck-max-size 120'

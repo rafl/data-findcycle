@@ -73,5 +73,6 @@ jobs:
           stack test \
             --ghc-options='-Wall' \
             --ghc-options='-fno-warn-dodgy-imports' \
+            --ghc-options='-Werror' \
             ${{ matrix.snapshot.args }} \
             --test-arguments='+RTS -N -RTS --quickcheck-tests 1000 --quickcheck-max-size 120'
