@@ -284,8 +284,7 @@ naive NaiveContainer{..} Input{..} = go 0 emptyC . inpUncons
         | Just j <- lookupC x m = (j, i - j)
         | otherwise = go (i + 1) (insertC x i m) (inpUncons xs)
 
-{-# SPECIALIZE naiveOrd' :: (Ord a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE naiveOrd' :: (Ord a) => Input [a] a -> [a] -> (Int, Int) #-}
+{-# INLINE naiveOrd' #-}
 naiveOrd' :: (Ord a) => Input s a -> s -> (Int, Int)
 naiveOrd' = naive (NaiveContainer M.empty M.lookup M.insert)
 
@@ -293,8 +292,7 @@ naiveOrd' = naive (NaiveContainer M.empty M.lookup M.insert)
 naiveOrd :: (Ord a) => CycleFinder a
 naiveOrd = CycleFinder naiveOrd'
 
-{-# SPECIALIZE naiveHashable' :: (Eq a, Hashable a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE naiveHashable' :: (Eq a, Hashable a) => Input [a] a -> [a] -> (Int, Int) #-}
+{-# INLINE naiveHashable' #-}
 naiveHashable' :: (Eq a, Hashable a) => Input s a -> s -> (Int, Int)
 naiveHashable' = naive (NaiveContainer HM.empty HM.lookup HM.insert)
 
@@ -303,8 +301,6 @@ naiveHashable :: (Eq a, Hashable a) => CycleFinder a
 naiveHashable = CycleFinder naiveHashable'
 
 {-# INLINE brent' #-}
-{-# SPECIALIZE brent' :: (Eq a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE brent' :: (Eq a) => Input [a] a -> [a] -> (Int, Int) #-}
 brent' :: (Eq a) => Input s a -> s -> (Int, Int)
 brent' Input{..} = maybe (0, 0) (uncurry (findLambda 1 1)) . inpUncons
   where
@@ -330,8 +326,6 @@ brent :: (Eq a) => CycleFinder a
 brent = CycleFinder brent'
 
 {-# INLINE nivash' #-}
-{-# SPECIALIZE nivash' :: (Ord a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE nivash' :: (Ord a) => Input [a] a -> [a] -> (Int, Int) #-}
 -- TODO: add a variant with stack partitioning, probably requiring a partitioning
 --       function as an extra argument. this version can use (const 0).
 nivash' :: (Ord a) => Input s a -> s -> (Int, Int)
@@ -367,8 +361,6 @@ nivash = CycleFinder nivash'
 -- TODO: Sedgewick, Szymanski, Yao
 
 {-# INLINE floyd' #-}
-{-# SPECIALIZE floyd' :: (Eq a) => Input a a -> a -> (Int, Int) #-}
-{-# SPECIALIZE floyd' :: (Eq a) => Input [a] a -> [a] -> (Int, Int) #-}
 floyd' :: (Eq a) => Input s a -> s -> (Int, Int)
 floyd' Input{..} s = detectCycle 0 s s
   where
