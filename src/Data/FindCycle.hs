@@ -253,14 +253,16 @@ cycleExpWith alg inp@Input{..} s n =
   The lazy list might also be evaluated further than \(\mu + \lambda\)
   depending on the cycle finding algorithm chosen ('brent', 'floyd').
 
-  >>> f x = x^42 `mod` 1000003 -- cycle (1, 83333)
+  >>> -- cycle μ=1, λ=83333 when starting from 23
+  >>> let f :: Integer -> Integer; f x = x^(42 :: Int) `mod` 1000003
+  >>>
   >>> g = cycleExp nivash f 23
   >>> g 0 -- after 0 iterations
-  > 23
+  23
   >>> -- after a googol iterations, but finishes in less than the current
   >>> -- age of the universe
-  >>> g (10^100)
-  > 671872
+  >>> g (10^(100 :: Int))
+  671872
 -}
 cycleExp :: CycleFinder a -> (a -> a) -> a -> Integer -> a
 cycleExp alg f x = cycleExpWith alg listInput (iterate f x)
