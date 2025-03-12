@@ -70,24 +70,16 @@ cycles =
 
 runners :: [(String, CycleFinder Int -> Cycle -> Benchmarkable)]
 runners =
-    [
-        ( "findCycle"
-        , \alg -> nf (\Cycle{..} -> findCycle alg cycF cycX0)
-        )
-    ,
-        ( "findExtractCycle"
-        , \alg -> nf (\Cycle{..} -> findCycleExtract alg cycF cycX0)
-        )
-    ,
-        ( "findExtractCycle+drop"
-        , \alg -> nf (\Cycle{..} -> dropLists $ findCycleExtract alg cycF cycX0)
-        )
+    [ ("findCycle", nf . runAlg findCycle)
+    , ("findExtractCycle", nf . runAlg findCycleExtract)
+    , ("findExtractCycle+drop", nf . (dropLists .) . runAlg findCycleExtract)
     ,
         ( "unsafeFindCycleFromList"
-        , \alg -> nf (\Cycle{..} -> unsafeFindCycleFromList alg (iterate cycF cycX0))
+        , nf . runAlg (\alg -> (unsafeFindCycleFromList alg .) . iterate)
         )
     ]
   where
+    runAlg f alg Cycle{..} = f alg cycF cycX0
     dropLists (a, b, _) = (a, b)
 
 algs :: [(String, CycleFinder Int)]

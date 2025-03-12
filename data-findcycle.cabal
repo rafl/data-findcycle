@@ -57,7 +57,7 @@ benchmark data-findcycle-bench
         base,
         data-findcycle,
         tasty,
-        tasty-bench,
+        tasty-bench >= 0.4 && < 0.5,
         primes,
-        deepseq
+        deepseq >= 1.5 && < 1.6
     ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-A64m -fproc-alignment=64
