@@ -126,10 +126,10 @@ module Data.FindCycle (
 ) where
 
 import Control.Applicative ((<*>), (<|>))
-import Control.Monad.Identity
 import Control.Monad.ST
 import qualified Data.Array.ST as A
 import Data.Functor ((<$), (<$>))
+import Data.Functor.Identity
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable (Hashable)
 import qualified Data.Map.Strict as M
