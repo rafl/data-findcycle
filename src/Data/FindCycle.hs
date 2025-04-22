@@ -125,7 +125,7 @@ module Data.FindCycle (
     minimalMu,
 ) where
 
-import Control.Applicative (pure, (<*>), (<|>))
+import Control.Applicative ((<*>), (<|>))
 import Control.Monad.ST
 import qualified Data.Array.ST as A
 import Data.Functor ((<$), (<$>))
@@ -135,7 +135,7 @@ import Data.Hashable (Hashable)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Traversable (traverse)
-import Prelude hiding (pure, traverse, (<$), (<$>), (<*>))
+import Prelude hiding (traverse, (<$), (<$>), (<*>))
 
 data Input s a = Input
     { inpUncons :: s -> Maybe (a, s)
@@ -341,8 +341,8 @@ data NivashStack a = NivashStack [(a, Int)]
 instance (Monad m) => NivashSt NivashStack m where
     {-# INLINE checkSt #-}
     checkSt x i (NivashStack xs)
-        | (sx, si) : _ <- xs', sx == x = pure (Left si)
-        | otherwise = pure . Right . NivashStack $ (x, i) : xs'
+        | (sx, si) : _ <- xs', sx == x = return (Left si)
+        | otherwise = return . Right . NivashStack $ (x, i) : xs'
       where
         xs' = dropWhile ((> x) . fst) xs
 
@@ -364,11 +364,11 @@ instance (A.Ix k) => NivashSt (NivashMultiStack s k) (ST s) where
 nivash' :: (Ord a, NivashSt st m, Monad m) => st a -> Input s a -> s -> m (Int, Int)
 nivash' st Input{..} = go 0 st
   where
-    go i stack = maybe (pure (i, 0)) (uncurry go') . inpUncons
+    go i stack = maybe (return (i, 0)) (uncurry go') . inpUncons
       where
         go' x s =
             checkSt x i stack >>= \case
-                Left si -> pure (si, i - si)
+                Left si -> return (si, i - si)
                 Right stack' -> go (i + 1) stack' s
 
 {- |
