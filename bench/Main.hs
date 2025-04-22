@@ -3,6 +3,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 import Control.DeepSeq
+import Data.Bits ((.&.))
 import Data.FindCycle
 import Data.Foldable (find)
 import Data.List (intercalate)
@@ -87,6 +88,7 @@ algs =
     [ ("brent", brent)
     , ("floyd", floyd)
     , ("nivash", nivash)
+    , ("nivashPart", nivashPart (0, 255) (.&. 0xff))
     , ("naiveHashable", naiveHashable)
     , ("naiveOrd", naiveOrd)
     ]

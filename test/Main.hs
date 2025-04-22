@@ -62,7 +62,8 @@ partialAlgs :: AlgClass (Labeled (CycleFinder Integer))
 partialAlgs =
     AlgClass
         (Labeled "nivash" nivash)
-        [ Labeled "brent" brent
+        [ Labeled "nivashPart" (nivashPart (0, 99) (`mod` 100))
+        , Labeled "brent" brent
         , Labeled "floyd" floyd
         ]
 

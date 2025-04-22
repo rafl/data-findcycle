@@ -1,5 +1,9 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 {- |
   Module: Data.FindCycle
@@ -108,6 +112,7 @@ module Data.FindCycle (
 
     -- ** Memory/Time Compromise
     nivash,
+    nivashPart,
 
     -- * Running algorithms
     findCycle,
@@ -121,6 +126,9 @@ module Data.FindCycle (
 ) where
 
 import Control.Applicative ((<*>), (<|>))
+import Control.Monad.Identity
+import Control.Monad.ST
+import qualified Data.Array.ST as A
 import Data.Functor ((<$), (<$>))
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable (Hashable)
@@ -324,21 +332,43 @@ brent' Input{..} = maybe (0, 0) (uncurry (findLambda 1 1)) . inpUncons
 brent :: (Eq a) => CycleFinder a
 brent = CycleFinder brent'
 
-{-# INLINE nivash' #-}
--- TODO: add a variant with stack partitioning, probably requiring a partitioning
---       function as an extra argument. this version can use (const 0).
-nivash' :: (Ord a) => Input s a -> s -> (Int, Int)
-nivash' Input{..} = go 0 []
-  where
-    go i stack = maybe (i, 0) (uncurry go') . inpUncons
-      where
-        go' x s
-            | (sx, si) : _ <- stack', sx == x = (si, i - si)
-            | otherwise = go (i + 1) ((x, i) : stack') s
-          where
-            stack' = dropWhile ((> x) . fst) stack
+class NivashSt st m where
+    checkSt :: (Ord a) => a -> Int -> st a -> m (Either Int (st a))
 
--- TODO: Gosper? maybe not really that useful in practice.
+data NivashStack a = NivashStack [(a, Int)]
+
+instance (Monad m) => NivashSt NivashStack m where
+    {-# INLINE checkSt #-}
+    checkSt x i (NivashStack xs)
+        | (sx, si) : _ <- xs', sx == x = pure (Left si)
+        | otherwise = pure . Right . NivashStack $ (x, i) : xs'
+      where
+        xs' = dropWhile ((> x) . fst) xs
+
+data NivashMultiStack s k a = NivashMultiStack
+    { partF :: a -> k
+    , partStacks :: A.STArray s k (NivashStack a)
+    }
+
+instance (A.Ix k) => NivashSt (NivashMultiStack s k) (ST s) where
+    {-# INLINE checkSt #-}
+    checkSt x i ms@NivashMultiStack{..} =
+        A.readArray partStacks k
+            >>= checkSt x i
+            >>= traverse ((ms <$) . A.writeArray partStacks k)
+      where
+        k = partF x
+
+{-# INLINE nivash' #-}
+nivash' :: (Ord a, NivashSt st m, Monad m) => st a -> Input s a -> s -> m (Int, Int)
+nivash' st Input{..} = go 0 st
+  where
+    go i stack = maybe (pure (i, 0)) (uncurry go') . inpUncons
+      where
+        go' x s =
+            checkSt x i stack >>= \case
+                Left si -> pure (si, i - si)
+                Right stack' -> go (i + 1) stack' s
 
 {- |
   Nivash's cycle finding algorithm.
@@ -355,8 +385,14 @@ nivash' Input{..} = go 0 []
   * [G. Nivasch, "Cycle detection using a stack", Information Processing Letters 90/3, pp. 135-140, 2004.](https://drive.google.com/file/d/16H_lrjeaBJqWvcn07C_w-6VNHldJ-ZZl/view)
 -}
 nivash :: (Ord a) => CycleFinder a
-nivash = CycleFinder nivash'
+nivash = CycleFinder $ \inp s -> runIdentity $ nivash' (NivashStack []) inp s
 
+nivashPart :: forall k a. (A.Ix k, Ord a) => (k, k) -> (a -> k) -> CycleFinder a
+nivashPart bounds f = CycleFinder $ \inp s -> runST $ do
+    arr <- A.newArray bounds (NivashStack []) :: ST s (A.STArray s k (NivashStack a))
+    nivash' (NivashMultiStack f arr) inp s
+
+-- TODO: Gosper? maybe not really that useful in practice.
 -- TODO: Sedgewick, Szymanski, Yao
 
 {-# INLINE floyd' #-}
