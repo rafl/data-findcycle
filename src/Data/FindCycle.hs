@@ -430,8 +430,11 @@ nivashPart bounds f = CycleFinder $ \inp s -> runST $ do
 {- |
   Like 'nivashPart', but uses the entire range of @k@ as bounds.
 
-  >>> import Data.Finite
-  >>> let alg = nivashPart' (modulo @100)
+  >>> import Data.Word (Word8)
+  >>> let alg256 = nivashPart' (fromIntegral :: Integer -> Word8)
+
+  >>> import Data.Finite (modulo) -- >= 0.2 for the Ix instance
+  >>> let alg100 = nivashPart' (modulo @100)
 -}
 nivashPart' :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
 nivashPart' = nivashPart (minBound, maxBound)
