@@ -388,7 +388,33 @@ nivash' st Input{..} = go 0 st
 nivash :: (Ord a) => CycleFinder a
 nivash = CycleFinder $ \inp s -> runIdentity $ nivash' (NivashStack []) inp s
 
-nivashPart :: forall k a. (A.Ix k, Ord a) => (k, k) -> (a -> k) -> CycleFinder a
+{- |
+  Like 'nivash', but using multiple independent stacks as determined by a partitioning
+  function.
+
+  This trades off some additional memory usage for the ability to detect cycles earlier
+  in the sequence.
+
+  Using \(k\) stacks, the cycle will be identified after, on average, a fraction of
+  \(1/(k+1)\) of the cycle length. E.g 50% above the absolute minimum achievable for
+  \(k=1\) ('nivash' without partitioning), or 1% above that minimum for \(k=99\).
+
+  >>> let alg = nivashPart (0, 99) (`mod` 100)
+-}
+nivashPart ::
+    forall k a.
+    (A.Ix k, Ord a) =>
+    {- |
+      the lower and upper bound (inclusive), respectively, of the partition keys
+      returned by the partition function
+    -}
+    (k, k) ->
+    {- |
+      the partition function. Returning values outside of the specified bounds will
+      cause run-time errors.
+    -}
+    (a -> k) ->
+    CycleFinder a
 nivashPart bounds f = CycleFinder $ \inp s -> runST $ do
     arr <- A.newArray bounds (NivashStack []) :: ST s (A.STArray s k (NivashStack a))
     nivash' (NivashMultiStack f arr) inp s
