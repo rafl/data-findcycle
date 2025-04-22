@@ -1,17 +1,15 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
 
 import Control.DeepSeq
 import Data.Bits ((.&.))
 import Data.FindCycle
-import Data.Finite.Integral
 import Data.Foldable (find)
 import Data.List (intercalate)
 import Data.Maybe
 import Data.Numbers.Primes
+import Data.Word
 import GHC.Generics
 import Test.Tasty.Bench
 import Test.Tasty.Patterns.Printer
@@ -91,8 +89,8 @@ algs =
     [ ("brent", brent)
     , ("floyd", floyd)
     , ("nivash", nivash)
-    , ("nivashPart", nivashPart (0, 255) (.&. 0xff))
-    , ("nivashPart'", nivashPart' (modulo @256))
+    , ("nivashPart", nivashPart (0, 0xff) (.&. 0xff))
+    , ("nivashPart'", nivashPart' (fromIntegral :: Int -> Word8))
     , ("naiveHashable", naiveHashable)
     , ("naiveOrd", naiveOrd)
     ]

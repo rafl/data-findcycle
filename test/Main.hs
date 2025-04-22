@@ -1,15 +1,13 @@
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 
 import Control.Applicative ((<*>))
 import Data.FindCycle
-import Data.Finite
 import Data.Foldable (Foldable, find, foldMap, toList)
 import Data.Functor ((<$>))
 import Data.Maybe
 import Data.Numbers.Primes
+import Data.Word
 import Test.Tasty
 import Test.Tasty.QuickCheck
 import Prelude hiding (Foldable, foldMap, (<$>), (<*>))
@@ -66,7 +64,7 @@ partialAlgs =
     AlgClass
         (Labeled "nivash" nivash)
         [ Labeled "nivashPart" (nivashPart (0, 99) (`mod` 100))
-        , Labeled "nivashPart'" (nivashPart' (modulo @100))
+        , Labeled "nivashPart'" (nivashPart' (fromIntegral :: Integer -> Word8))
         , Labeled "brent" brent
         , Labeled "floyd" floyd
         ]
