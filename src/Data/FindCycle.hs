@@ -125,7 +125,7 @@ module Data.FindCycle (
     minimalMu,
 ) where
 
-import Control.Applicative ((<*>), (<|>))
+import Control.Applicative (pure, (<*>), (<|>))
 import Control.Monad.ST
 import qualified Data.Array.ST as A
 import Data.Functor ((<$), (<$>))
@@ -134,7 +134,8 @@ import qualified Data.HashMap.Strict as HM
 import Data.Hashable (Hashable)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, fromMaybe)
-import Prelude hiding ((<$), (<$>), (<*>))
+import Data.Traversable (traverse)
+import Prelude hiding (pure, traverse, (<$), (<$>), (<*>))
 
 data Input s a = Input
     { inpUncons :: s -> Maybe (a, s)
