@@ -9,4 +9,4 @@ jobs:
         with:
           ghc-version: 9.12
       - run: cabal install doctest
-      - run: cabal repl --with-compiler=doctest
+      - run: cabal repl --with-compiler=doctest --build-depends='finite-typelits >= 0.2'

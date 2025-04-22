@@ -113,6 +113,7 @@ module Data.FindCycle (
     -- ** Memory/Time Compromise
     nivash,
     nivashPart,
+    nivashPart',
 
     -- * Running algorithms
     findCycle,
@@ -418,6 +419,22 @@ nivashPart ::
 nivashPart bounds f = CycleFinder $ \inp s -> runST $ do
     arr <- A.newArray bounds (NivashStack []) :: ST s (A.STArray s k (NivashStack a))
     nivash' (NivashMultiStack f arr) inp s
+
+{-
+-}
+
+{- $
+  >>> :seti -XDataKinds -XTypeApplications -XFlexibleContexts
+-}
+
+{- |
+  Like 'nivashPart', but uses the entire range of @k@ as bounds.
+
+  >>> import Data.Finite
+  >>> let alg = nivashPart' (modulo @100)
+-}
+nivashPart' :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
+nivashPart' = nivashPart (minBound, maxBound)
 
 -- TODO: Gosper? maybe not really that useful in practice.
 -- TODO: Sedgewick, Szymanski, Yao

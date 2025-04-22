@@ -51,7 +51,8 @@ test-suite data-findcycle-test
         QuickCheck >= 2.7 && < 2.16,
         primes >= 0.2 && < 0.3,
         tasty >= 0.10 && < 1.6,
-        tasty-quickcheck >= 0.8 && < 0.12
+        tasty-quickcheck >= 0.8 && < 0.12,
+        finite-typelits
     ghc-options: -Wall -threaded -rtsopts
 
 benchmark data-findcycle-bench
@@ -65,5 +66,6 @@ benchmark data-findcycle-bench
         tasty,
         tasty-bench >= 0.4 && < 0.5,
         primes,
-        deepseq >= 1.5 && < 1.6
+        deepseq >= 1.5 && < 1.6,
+        finite-typelits >= 0.2 && < 0.3
     ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-A64m -fproc-alignment=64
