@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -135,11 +136,16 @@ import Data.Functor ((<$), (<$>))
 import Data.Functor.Identity
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable (Hashable)
-import Data.Kind (Type)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Traversable (traverse)
 import Prelude hiding (traverse, (<$), (<$>), (<*>))
+
+#if __GLASGOW_HASKELL__ >= 800
+import Data.Kind (Type)
+#else
+#define Type *
+#endif
 
 data Input s a = Input
     { inpUncons :: s -> Maybe (a, s)
