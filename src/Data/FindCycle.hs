@@ -1,9 +1,11 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {- |
   Module: Data.FindCycle
@@ -133,6 +135,7 @@ import Data.Functor ((<$), (<$>))
 import Data.Functor.Identity
 import qualified Data.HashMap.Strict as HM
 import Data.Hashable (Hashable)
+import Data.Kind (Type)
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Traversable (traverse)
@@ -335,42 +338,49 @@ brent :: (Eq a) => CycleFinder a
 brent = CycleFinder brent'
 
 class NivashSt st m where
-    checkSt :: (Ord a) => a -> Int -> st a -> m (Either Int (st a))
+    type State st m a :: Type
+    newSt :: st a -> m (State st m a)
+    checkSt :: (Ord a) => st a -> a -> Int -> State st m a -> m (Either Int (State st m a))
 
-newtype NivashStack a = NivashStack [(a, Int)]
+data NivashStack a = NivashStack
 
 instance (Monad m) => NivashSt NivashStack m where
+    type State NivashStack m a = [(a, Int)]
+    newSt _ = return []
     {-# INLINE checkSt #-}
-    checkSt x i (NivashStack xs)
+    checkSt _ x i xs
         | (sx, si) : _ <- xs', sx == x = return (Left si)
-        | otherwise = return . Right . NivashStack $ (x, i) : xs'
+        | otherwise = return . Right $ (x, i) : xs'
       where
         xs' = dropWhile ((> x) . fst) xs
 
-data NivashMultiStack s k a = NivashMultiStack
-    { partF :: a -> k
-    , partStacks :: A.STArray s k (NivashStack a)
+data NivashMultiStack st k a = NivashMultiStack
+    { partBounds :: (k, k)
+    , partF :: a -> k
+    , partDelegate :: st a
     }
 
-instance (A.Ix k) => NivashSt (NivashMultiStack s k) (ST s) where
+instance (A.Ix k, NivashSt st (ST s)) => NivashSt (NivashMultiStack st k) (ST s) where
+    type State (NivashMultiStack st k) (ST s) a = A.STArray s k (State st (ST s) a)
+    newSt NivashMultiStack{..} = newSt partDelegate >>= A.newArray partBounds
     {-# INLINE checkSt #-}
-    checkSt x i ms@NivashMultiStack{..} =
-        A.readArray partStacks k
-            >>= checkSt x i
-            >>= traverse ((ms <$) . A.writeArray partStacks k)
+    checkSt NivashMultiStack{..} x i stacks =
+        A.readArray stacks k
+            >>= checkSt partDelegate x i
+            >>= traverse ((stacks <$) . A.writeArray stacks k)
       where
         k = partF x
 
 {-# INLINE nivash' #-}
 nivash' :: (Ord a, NivashSt st m, Monad m) => st a -> Input s a -> s -> m (Int, Int)
-nivash' st Input{..} = go 0 st
+nivash' stack Input{..} = (newSt stack >>=) . flip (go 0)
   where
-    go i stack = maybe (return (i, 0)) (uncurry go') . inpUncons
+    go i st = maybe (return (i, 0)) (uncurry go') . inpUncons
       where
         go' x s =
-            checkSt x i stack >>= \case
+            checkSt stack x i st >>= \case
                 Left si -> return (si, i - si)
-                Right stack' -> go (i + 1) stack' s
+                Right st' -> go (i + 1) st' s
 
 {- |
   Nivash's cycle finding algorithm.
@@ -387,7 +397,7 @@ nivash' st Input{..} = go 0 st
   * [G. Nivasch, "Cycle detection using a stack", Information Processing Letters 90/3, pp. 135-140, 2004.](https://drive.google.com/file/d/16H_lrjeaBJqWvcn07C_w-6VNHldJ-ZZl/view)
 -}
 nivash :: (Ord a) => CycleFinder a
-nivash = CycleFinder $ \inp s -> runIdentity $ nivash' (NivashStack []) inp s
+nivash = CycleFinder $ (runIdentity .) . nivash' NivashStack
 
 {- |
   Like 'nivash', but using multiple independent stacks as determined by a partitioning
@@ -416,12 +426,8 @@ nivashPart ::
     -}
     (a -> k) ->
     CycleFinder a
-nivashPart bounds f = CycleFinder $ \inp s -> runST $ do
-    arr <- A.newArray bounds (NivashStack []) :: ST s (A.STArray s k (NivashStack a))
-    nivash' (NivashMultiStack f arr) inp s
-
-{-
--}
+nivashPart bounds f = CycleFinder $ \inp s ->
+    runST $ nivash' (NivashMultiStack bounds f NivashStack) inp s
 
 {- $
   >>> :seti -XDataKinds -XTypeApplications -XFlexibleContexts
@@ -481,9 +487,10 @@ floyd = CycleFinder floyd'
   if you're running the t'CycleFinder' using any of the functions which cache
   the sequence of values (any but 'findCycle' and 'cycleExp'').
 -}
-minimalMu :: (Eq a) => CycleFinder a -> CycleFinder a
+minimalMu :: forall a. (Eq a) => CycleFinder a -> CycleFinder a
 minimalMu alg = CycleFinder go
   where
+    go :: forall s. Input s a -> s -> (Int, Int)
     go inp@Input{..} s = maybeFindMu (runCycleFinder alg inp s)
       where
         maybeFindMu r@(_, lambda)
