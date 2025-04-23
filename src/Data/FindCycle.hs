@@ -397,8 +397,8 @@ nivash = CycleFinder $ \inp s -> runIdentity $ nivash' (NivashStack []) inp s
   in the sequence.
 
   Using \(k\) stacks, the cycle will be identified after, on average, a fraction of
-  \(1/(k+1)\) of the cycle length. E.g 50% above the absolute minimum achievable for
-  \(k=1\) ('nivash' without partitioning), or 1% above that minimum for \(k=99\).
+  \(\dfrac{1}{k+1}\) of the cycle length. E.g 50% above the absolute minimum achievable
+  for \(k=1\) ('nivash' without partitioning), or 1% above that minimum for \(k=99\).
 
   >>> let alg = nivashPart (0, 99) (`mod` 100)
 -}
