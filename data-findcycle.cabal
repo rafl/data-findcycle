@@ -30,8 +30,8 @@ library
         containers >= 0.5 && < 0.9,
         hashable >= 1.2 && < 1.6,
         unordered-containers >= 0.2 && < 0.3,
-        mtl,
-        array
+        mtl >= 2.1 && < 2.4,
+        array >= 0.5 && < 0.6
     -- Data.Functor.Identity used to be in transformers instead of base.
     if impl(ghc<7.10.1)
         build-depends:
