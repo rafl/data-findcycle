@@ -253,7 +253,7 @@ cycleExpWith alg inp@Input{..} s n =
   function computes
 
   \[ f^n(x) = \begin{cases}
-       f^n(x)                                 & \text{if } n < \mu, \\
+       f^n(x)                                 & \text{if } n < \mu, \newline
        f^{\mu + ((n - \mu) \bmod \lambda)}(x) & \text{if } n \ge \mu.
      \end{cases} \]
 
