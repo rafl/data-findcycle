@@ -1,6 +1,6 @@
 cabal-version:      1.18
 name:               data-findcycle
-version:            0.1.0.0
+version:            0.1.1.0
 synopsis:           Find cycles in periodic functions (and lists)
 description:
   Any function @f :: a -> a@ where the type @a@ has finitely many values
