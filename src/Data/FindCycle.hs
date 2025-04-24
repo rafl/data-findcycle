@@ -143,8 +143,6 @@ import Prelude hiding (traverse, (<$), (<$>), (<*>))
 
 #if __GLASGOW_HASKELL__ >= 800
 import Data.Kind (Type)
-#else
-#define Type *
 #endif
 
 data Input s a = Input
@@ -343,10 +341,16 @@ brent' Input{..} = maybe (0, 0) (uncurry (findLambda 1 1)) . inpUncons
 brent :: (Eq a) => CycleFinder a
 brent = CycleFinder brent'
 
+#if __GLASGOW_HASKELL__ < 800
+#define Type *
+#endif
+
 class NivashSt st m where
     type State st m a :: Type
     newSt :: st a -> m (State st m a)
     checkSt :: (Ord a) => st a -> a -> Int -> State st m a -> m (Either Int (State st m a))
+
+#undef Type
 
 data NivashStack a = NivashStack
 
