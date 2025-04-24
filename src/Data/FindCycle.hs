@@ -116,7 +116,7 @@ module Data.FindCycle (
     -- ** Memory/Time Compromise
     nivash,
     nivashPart,
-    nivashPart',
+    nivashPartWithinBounds,
 
     -- * Running algorithms
     findCycle,
@@ -409,8 +409,12 @@ nivash' stack Input{..} = (newSt stack >>=) . flip (go 0)
 nivash :: (Ord a) => CycleFinder a
 nivash = CycleFinder $ (runIdentity .) . nivash' NivashStack
 
+{- $
+  >>> :seti -XDataKinds -XTypeApplications -XFlexibleContexts
+-}
+
 {- |
-  Like 'nivash', but using multiple independent stacks as determined by a partitioning
+  Like 'nivash', but uses multiple independent stacks as determined by a partitioning
   function.
 
   This trades off some additional memory usage for the ability to detect cycles earlier
@@ -420,9 +424,27 @@ nivash = CycleFinder $ (runIdentity .) . nivash' NivashStack
   \(\dfrac{1}{k+1}\) of the cycle length. E.g 50% above the absolute minimum achievable
   for \(k=1\) ('nivash' without partitioning), or 1% above that minimum for \(k=99\).
 
-  >>> let alg = nivashPart (0, 99) (`mod` 100)
+  The entire range of @k@ will be used for partitioning, with each value from 'minBound'
+  to 'maxBound' having its own partition. Use a type appropriate for the number of
+  partitions you'd like to use. Use 'nivashPartWithinBounds' if you'd like to explicitly
+  use a continuous subrange of @k@ instead.
+
+  >>> import Data.Word (Word8)
+  >>> let alg256 = nivashPart (fromIntegral :: Integer -> Word8)
+
+  >>> import Data.Finite (modulo) -- >= 0.2 for the Ix instance
+  >>> let alg100 = nivashPart (modulo @100)
 -}
-nivashPart ::
+nivashPart :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
+nivashPart = nivashPartWithinBounds (minBound, maxBound)
+
+{- |
+  Like 'nivashPart', but allows for a specific continuous subrange of @k@ to be used for
+  partitioning rather than creating a partition for each possible value of @k@.
+
+  >>> let alg100 = nivashPartWithinBounds (0, 99) (`mod` 100)
+-}
+nivashPartWithinBounds ::
     forall k a.
     (A.Ix k, Ord a) =>
     {- |
@@ -436,24 +458,8 @@ nivashPart ::
     -}
     (a -> k) ->
     CycleFinder a
-nivashPart bounds f = CycleFinder $ \inp s ->
+nivashPartWithinBounds bounds f = CycleFinder $ \inp s ->
     runST $ nivash' (NivashMultiStack bounds f NivashStack) inp s
-
-{- $
-  >>> :seti -XDataKinds -XTypeApplications -XFlexibleContexts
--}
-
-{- |
-  Like 'nivashPart', but uses the entire range of @k@ as bounds.
-
-  >>> import Data.Word (Word8)
-  >>> let alg256 = nivashPart' (fromIntegral :: Integer -> Word8)
-
-  >>> import Data.Finite (modulo) -- >= 0.2 for the Ix instance
-  >>> let alg100 = nivashPart' (modulo @100)
--}
-nivashPart' :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
-nivashPart' = nivashPart (minBound, maxBound)
 
 -- TODO: Gosper? maybe not really that useful in practice.
 -- TODO: Sedgewick, Szymanski, Yao

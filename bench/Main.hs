@@ -89,8 +89,8 @@ algs =
     [ ("brent", brent)
     , ("floyd", floyd)
     , ("nivash", nivash)
-    , ("nivashPart", nivashPart (0, 0xff) (.&. 0xff))
-    , ("nivashPart'", nivashPart' (fromIntegral :: Int -> Word8))
+    , ("nivashPart", nivashPart (fromIntegral :: Int -> Word8))
+    , ("nivashPartWithinBounds", nivashPartWithinBounds (0, 0xff) (.&. 0xff))
     , ("naiveHashable", naiveHashable)
     , ("naiveOrd", naiveOrd)
     ]
