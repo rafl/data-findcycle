@@ -9,4 +9,4 @@ jobs:
         with:
           ghc-version: 9.12
       - run: cabal install doctest
-      - run: cabal repl --with-compiler=doctest --build-depends='finite-typelits >= 0.2' --allow-newer=finite-typelits:base,finite-typelits:template-haskell
+      - run: cabal repl --with-compiler=doctest --build-depends='finite-typelits >= 0.2'
