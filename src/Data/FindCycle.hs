@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
@@ -141,10 +140,6 @@ import Data.Maybe (fromJust, fromMaybe)
 import Data.Traversable (traverse)
 import Prelude hiding (traverse, (<$), (<$>), (<*>))
 
-#if __GLASGOW_HASKELL__ >= 800
-import Data.Kind (Type)
-#endif
-
 data Input s a = Input
     { inpUncons :: s -> Maybe (a, s)
     , inpAdvance :: Int -> s -> s
@@ -253,7 +248,7 @@ cycleExpWith alg inp@Input{..} s n =
   function computes
 
   \[ f^n(x) = \begin{cases}
-       f^n(x)                                 & \text{if } n < \mu, \newline
+       f^n(x)                                 & \text{if } n < \mu, \\
        f^{\mu + ((n - \mu) \bmod \lambda)}(x) & \text{if } n \ge \mu.
      \end{cases} \]
 
@@ -341,16 +336,10 @@ brent' Input{..} = maybe (0, 0) (uncurry (findLambda 1 1)) . inpUncons
 brent :: (Eq a) => CycleFinder a
 brent = CycleFinder brent'
 
-#if __GLASGOW_HASKELL__ < 800
-#define Type *
-#endif
-
 class NivashSt st m where
-    type State st m a :: Type
+    type State st m a
     newSt :: st a -> m (State st m a)
     checkSt :: (Ord a) => st a -> a -> Int -> State st m a -> m (Either Int (State st m a))
-
-#undef Type
 
 data NivashStack a = NivashStack
 
