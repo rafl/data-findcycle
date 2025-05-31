@@ -88,9 +88,9 @@ algs :: [(String, CycleFinder Int)]
 algs =
     [ ("brent", brent)
     , ("floyd", floyd)
-    , ("nivash", nivash)
-    , ("nivashPart", nivashPart (fromIntegral :: Int -> Word8))
-    , ("nivashPartWithinBounds", nivashPartWithinBounds (0, 0xff) (.&. 0xff))
+    , ("nivasch", nivasch)
+    , ("nivaschPart", nivaschPart (fromIntegral :: Int -> Word8))
+    , ("nivaschPartWithinBounds", nivaschPartWithinBounds (0, 0xff) (.&. 0xff))
     , ("naiveHashable", naiveHashable)
     , ("naiveOrd", naiveOrd)
     ]

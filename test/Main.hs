@@ -62,9 +62,9 @@ totalAlgs =
 partialAlgs :: AlgClass (Labeled (CycleFinder Integer))
 partialAlgs =
     AlgClass
-        (Labeled "nivash" nivash)
-        [ Labeled "nivashPart" (nivashPart (fromIntegral :: Integer -> Word8))
-        , Labeled "nivashPartWithinBounds" (nivashPartWithinBounds (0, 99) (`mod` 100))
+        (Labeled "nivasch" nivasch)
+        [ Labeled "nivaschPart" (nivaschPart (fromIntegral :: Integer -> Word8))
+        , Labeled "nivaschPartWithinBounds" (nivaschPartWithinBounds (0, 99) (`mod` 100))
         , Labeled "brent" brent
         , Labeled "floyd" floyd
         ]

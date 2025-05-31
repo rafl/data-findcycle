@@ -30,9 +30,9 @@ module Data.FindCycle (
        > fastCyclicFunc (10^100)
 
        The length of the non-repeating prefix and the length of the cycle, as
-       determined using the 'nivash' algorithm:
+       determined using the 'nivasch' algorithm:
 
-       > let (mu, lambda) = findCycle nivash someCyclicFunc startingValue
+       > let (mu, lambda) = findCycle nivasch someCyclicFunc startingValue
 
        The same two lengths, plus two lists containing the values of the prefix and
        cyclic parts of the sequence using the 'naiveOrd' algorithm:
@@ -69,7 +69,7 @@ module Data.FindCycle (
        All algorithms always provide a minimal \(\lambda\) as opposed to a
        multiple of the true cycle length.
 
-       In practice, you'll usually want to use 'nivash', 'brent', or one of the
+       In practice, you'll usually want to use 'nivasch', 'brent', or one of the
        naive variants. If performance matters and you're not sure what to choose,
        compare the alternatives by benchmarking for your usecase.
     -}
@@ -113,9 +113,9 @@ module Data.FindCycle (
     floyd,
 
     -- ** Memory/Time Compromise
-    nivash,
-    nivashPart,
-    nivashPartWithinBounds,
+    nivasch,
+    nivaschPart,
+    nivaschPartWithinBounds,
 
     -- * Running algorithms
     findCycle,
@@ -126,6 +126,17 @@ module Data.FindCycle (
 
     -- * Utilities
     minimalMu,
+
+    -- * Deprecated
+
+    {- |
+       'nivasch' was originally misspelled as 'nivash' in various places, which is
+       unfortunate. These old functions are deprecated and will be removed in the
+       next major release.
+    -}
+    nivash,
+    nivashPart,
+    nivashPartWithinBounds,
 ) where
 
 import Control.Applicative ((<*>), (<|>))
@@ -268,7 +279,7 @@ cycleExpWith alg inp@Input{..} s n =
   >>> -- cycle μ=1, λ=83333 when starting from 23
   >>> let f :: Integer -> Integer; f x = x^(42 :: Int) `mod` 1000003
   >>>
-  >>> g = cycleExp nivash f 23
+  >>> g = cycleExp nivasch f 23
   >>> g 0 -- after 0 iterations
   23
   >>> -- after a googol iterations, but finishes in less than the current
@@ -336,15 +347,15 @@ brent' Input{..} = maybe (0, 0) (uncurry (findLambda 1 1)) . inpUncons
 brent :: (Eq a) => CycleFinder a
 brent = CycleFinder brent'
 
-class NivashSt st m where
+class NivaschSt st m where
     type State st m a
     newSt :: st a -> m (State st m a)
     checkSt :: (Ord a) => st a -> a -> Int -> State st m a -> m (Either Int (State st m a))
 
-data NivashStack a = NivashStack
+data NivaschStack a = NivaschStack
 
-instance (Monad m) => NivashSt NivashStack m where
-    type State NivashStack m a = [(a, Int)]
+instance (Monad m) => NivaschSt NivaschStack m where
+    type State NivaschStack m a = [(a, Int)]
     newSt _ = return []
     {-# INLINE checkSt #-}
     checkSt _ x i xs
@@ -353,26 +364,26 @@ instance (Monad m) => NivashSt NivashStack m where
       where
         xs' = dropWhile ((> x) . fst) xs
 
-data NivashMultiStack st k a = NivashMultiStack
+data NivaschMultiStack st k a = NivaschMultiStack
     { partBounds :: (k, k)
     , partF :: a -> k
     , partDelegate :: st a
     }
 
-instance (A.Ix k, NivashSt st (ST s)) => NivashSt (NivashMultiStack st k) (ST s) where
-    type State (NivashMultiStack st k) (ST s) a = A.STArray s k (State st (ST s) a)
-    newSt NivashMultiStack{..} = newSt partDelegate >>= A.newArray partBounds
+instance (A.Ix k, NivaschSt st (ST s)) => NivaschSt (NivaschMultiStack st k) (ST s) where
+    type State (NivaschMultiStack st k) (ST s) a = A.STArray s k (State st (ST s) a)
+    newSt NivaschMultiStack{..} = newSt partDelegate >>= A.newArray partBounds
     {-# INLINE checkSt #-}
-    checkSt NivashMultiStack{..} x i stacks =
+    checkSt NivaschMultiStack{..} x i stacks =
         A.readArray stacks k
             >>= checkSt partDelegate x i
             >>= traverse ((stacks <$) . A.writeArray stacks k)
       where
         k = partF x
 
-{-# INLINE nivash' #-}
-nivash' :: (Ord a, NivashSt st m, Monad m) => st a -> Input s a -> s -> m (Int, Int)
-nivash' stack Input{..} = (newSt stack >>=) . flip (go 0)
+{-# INLINE nivasch' #-}
+nivasch' :: (Ord a, NivaschSt st m, Monad m) => st a -> Input s a -> s -> m (Int, Int)
+nivasch' stack Input{..} = (newSt stack >>=) . flip (go 0)
   where
     go i st = maybe (return (i, 0)) (uncurry go') . inpUncons
       where
@@ -382,7 +393,7 @@ nivash' stack Input{..} = (newSt stack >>=) . flip (go 0)
                 Right st' -> go (i + 1) st' s
 
 {- |
-  Nivash's cycle finding algorithm.
+  Nivasch's cycle finding algorithm.
 
   Never computes an element at a given position in the sequence more than once.
 
@@ -395,15 +406,15 @@ nivash' stack Input{..} = (newSt stack >>=) . flip (go 0)
 
   * [G. Nivasch, "Cycle detection using a stack", Information Processing Letters 90/3, pp. 135-140, 2004.](https://drive.google.com/file/d/16H_lrjeaBJqWvcn07C_w-6VNHldJ-ZZl/view)
 -}
-nivash :: (Ord a) => CycleFinder a
-nivash = CycleFinder $ (runIdentity .) . nivash' NivashStack
+nivasch :: (Ord a) => CycleFinder a
+nivasch = CycleFinder $ (runIdentity .) . nivasch' NivaschStack
 
 {- $
   >>> :seti -XDataKinds -XTypeApplications -XFlexibleContexts
 -}
 
 {- |
-  Like 'nivash', but uses multiple independent stacks as determined by a partitioning
+  Like 'nivasch', but uses multiple independent stacks as determined by a partitioning
   function.
 
   This trades off some additional memory usage for the ability to detect cycles earlier
@@ -411,29 +422,29 @@ nivash = CycleFinder $ (runIdentity .) . nivash' NivashStack
 
   Using \(k\) stacks, the cycle will be identified after, on average, a fraction of
   \(\dfrac{1}{k+1}\) of the cycle length. E.g 50% above the absolute minimum achievable
-  for \(k=1\) ('nivash' without partitioning), or 1% above that minimum for \(k=99\).
+  for \(k=1\) ('nivasch' without partitioning), or 1% above that minimum for \(k=99\).
 
   The entire range of @k@ will be used for partitioning, with each value from 'minBound'
   to 'maxBound' having its own partition. Use a type appropriate for the number of
-  partitions you'd like to use. Use 'nivashPartWithinBounds' if you'd like to explicitly
+  partitions you'd like to use. Use 'nivaschPartWithinBounds' if you'd like to explicitly
   use a continuous subrange of @k@ instead.
 
   >>> import Data.Word (Word8)
-  >>> let alg256 = nivashPart (fromIntegral :: Integer -> Word8)
+  >>> let alg256 = nivaschPart (fromIntegral :: Integer -> Word8)
 
   >>> import Data.Finite (modulo) -- >= 0.2 for the Ix instance
-  >>> let alg100 = nivashPart (modulo @100)
+  >>> let alg100 = nivaschPart (modulo @100)
 -}
-nivashPart :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
-nivashPart = nivashPartWithinBounds (minBound, maxBound)
+nivaschPart :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
+nivaschPart = nivaschPartWithinBounds (minBound, maxBound)
 
 {- |
-  Like 'nivashPart', but allows for a specific continuous subrange of @k@ to be used for
+  Like 'nivaschPart', but allows for a specific continuous subrange of @k@ to be used for
   partitioning rather than creating a partition for each possible value of @k@.
 
-  >>> let alg100 = nivashPartWithinBounds (0, 99) (`mod` 100)
+  >>> let alg100 = nivaschPartWithinBounds (0, 99) (`mod` 100)
 -}
-nivashPartWithinBounds ::
+nivaschPartWithinBounds ::
     forall k a.
     (A.Ix k, Ord a) =>
     {- |
@@ -447,8 +458,8 @@ nivashPartWithinBounds ::
     -}
     (a -> k) ->
     CycleFinder a
-nivashPartWithinBounds bounds f = CycleFinder $ \inp s ->
-    runST $ nivash' (NivashMultiStack bounds f NivashStack) inp s
+nivaschPartWithinBounds bounds f = CycleFinder $ \inp s ->
+    runST $ nivasch' (NivaschMultiStack bounds f NivaschStack) inp s
 
 -- TODO: Gosper? maybe not really that useful in practice.
 -- TODO: Sedgewick, Szymanski, Yao
@@ -507,3 +518,17 @@ minimalMu alg = CycleFinder go
             go' (t, ts') (m, ms')
                 | t == m = mu
                 | otherwise = findMu (mu + 1) ts' ms'
+
+{-# DEPRECATED
+    nivash
+    , nivashPart
+    , nivashPartWithinBounds
+    "Use nivasch* functions instead"
+    #-}
+nivash :: (Ord a) => CycleFinder a
+nivash = nivasch
+nivashPart :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
+nivashPart = nivaschPart
+nivashPartWithinBounds ::
+    forall k a. (A.Ix k, Ord a) => (k, k) -> (a -> k) -> CycleFinder a
+nivashPartWithinBounds = nivaschPartWithinBounds
