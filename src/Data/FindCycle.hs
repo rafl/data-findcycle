@@ -525,10 +525,16 @@ minimalMu alg = CycleFinder go
     , nivashPartWithinBounds
     "Use nivasch* functions instead"
     #-}
+
+-- | Alias for 'nivasch'.
 nivash :: (Ord a) => CycleFinder a
 nivash = nivasch
+
+-- | Alias for 'nivaschPart'.
 nivashPart :: (A.Ix k, Bounded k, Ord a) => (a -> k) -> CycleFinder a
 nivashPart = nivaschPart
+
+-- | Alias for 'nivaschPartWithinBounds'.
 nivashPartWithinBounds ::
     forall k a. (A.Ix k, Ord a) => (k, k) -> (a -> k) -> CycleFinder a
 nivashPartWithinBounds = nivaschPartWithinBounds
