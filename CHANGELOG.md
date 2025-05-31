@@ -8,6 +8,7 @@
 * Correct unfortunate misspelling of "Nivasch" as "Nivash".
   New correctly named `nivasch*` functions were added. The old `nivash*` functions
   are deprecated and will be removed in 0.2.
+* Minor documentation rendering fixes.
 
 ## 0.1.1.0 -- 2025-04-24
 
