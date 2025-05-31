@@ -1,11 +1,9 @@
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
 
 {- |
   Module: Data.FindCycle
@@ -348,47 +346,40 @@ brent :: (Eq a) => CycleFinder a
 brent = CycleFinder brent'
 
 class NivaschSt st m where
-    type State st m a
-    newSt :: st a -> m (State st m a)
-    checkSt :: (Ord a) => st a -> a -> Int -> State st m a -> m (Either Int (State st m a))
+    checkSt :: (Ord a) => a -> Int -> st a -> m (Either Int (st a))
 
-data NivaschStack a = NivaschStack
+data NivaschStack a = NivaschStack [(a, Int)]
 
 instance (Monad m) => NivaschSt NivaschStack m where
-    type State NivaschStack m a = [(a, Int)]
-    newSt _ = return []
     {-# INLINE checkSt #-}
-    checkSt _ x i xs
+    checkSt x i (NivaschStack xs)
         | (sx, si) : _ <- xs', sx == x = return (Left si)
-        | otherwise = return . Right $ (x, i) : xs'
+        | otherwise = return . Right . NivaschStack $ (x, i) : xs'
       where
         xs' = dropWhile ((> x) . fst) xs
 
-data NivaschMultiStack st k a = NivaschMultiStack
-    { partBounds :: (k, k)
-    , partF :: a -> k
-    , partDelegate :: st a
+data NivaschMultiStack s k a = NivaschMultiStack
+    { partF :: a -> k
+    , partStacks :: A.STArray s k (NivaschStack a)
     }
 
-instance (A.Ix k, NivaschSt st (ST s)) => NivaschSt (NivaschMultiStack st k) (ST s) where
-    type State (NivaschMultiStack st k) (ST s) a = A.STArray s k (State st (ST s) a)
-    newSt NivaschMultiStack{..} = newSt partDelegate >>= A.newArray partBounds
+instance (A.Ix k) => NivaschSt (NivaschMultiStack s k) (ST s) where
     {-# INLINE checkSt #-}
-    checkSt NivaschMultiStack{..} x i stacks =
-        A.readArray stacks k
-            >>= checkSt partDelegate x i
-            >>= traverse ((stacks <$) . A.writeArray stacks k)
+    checkSt x i ms@NivaschMultiStack{..} =
+        A.readArray partStacks k
+            >>= checkSt x i
+            >>= traverse ((ms <$) . A.writeArray partStacks k)
       where
         k = partF x
 
 {-# INLINE nivasch' #-}
 nivasch' :: (Ord a, NivaschSt st m, Monad m) => st a -> Input s a -> s -> m (Int, Int)
-nivasch' stack Input{..} = (newSt stack >>=) . flip (go 0)
+nivasch' stack Input{..} = go 0 stack
   where
     go i st = maybe (return (i, 0)) (uncurry go') . inpUncons
       where
         go' x s =
-            checkSt stack x i st >>= \case
+            checkSt x i st >>= \case
                 Left si -> return (si, i - si)
                 Right st' -> go (i + 1) st' s
 
@@ -407,7 +398,7 @@ nivasch' stack Input{..} = (newSt stack >>=) . flip (go 0)
   * [G. Nivasch, "Cycle detection using a stack", Information Processing Letters 90/3, pp. 135-140, 2004.](https://drive.google.com/file/d/16H_lrjeaBJqWvcn07C_w-6VNHldJ-ZZl/view)
 -}
 nivasch :: (Ord a) => CycleFinder a
-nivasch = CycleFinder $ (runIdentity .) . nivasch' NivaschStack
+nivasch = CycleFinder $ (runIdentity .) . nivasch' (NivaschStack [])
 
 {- $
   >>> :seti -XDataKinds -XTypeApplications -XFlexibleContexts
@@ -459,7 +450,9 @@ nivaschPartWithinBounds ::
     (a -> k) ->
     CycleFinder a
 nivaschPartWithinBounds bounds f = CycleFinder $ \inp s ->
-    runST $ nivasch' (NivaschMultiStack bounds f NivaschStack) inp s
+    runST $ do
+        arr <- A.newArray bounds (NivaschStack []) :: ST s (A.STArray s k (NivaschStack a))
+        nivasch' (NivaschMultiStack f arr) inp s
 
 -- TODO: Gosper? maybe not really that useful in practice.
 -- TODO: Sedgewick, Szymanski, Yao
@@ -506,7 +499,6 @@ floyd = CycleFinder floyd'
 minimalMu :: forall a. (Eq a) => CycleFinder a -> CycleFinder a
 minimalMu alg = CycleFinder go
   where
-    go :: forall s. Input s a -> s -> (Int, Int)
     go inp@Input{..} s = maybeFindMu (runCycleFinder alg inp s)
       where
         maybeFindMu r@(_, lambda)
