@@ -7,6 +7,7 @@
   are deprecated and will be removed in 0.2.
 * Fix documentation rendering issue caused by the introduction of LANGUAGE CPP
   by removing CPP. Turns out it wasn't really necessary to start with.
+* Minor refactoring to improve test coverage.
 
 ## 0.1.1.0 -- 2025-04-24
 
