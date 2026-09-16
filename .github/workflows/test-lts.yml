@@ -63,6 +63,15 @@ jobs:
           resolver: ${{ matrix.snapshot.name }}
           packages: ['.']
           EOF
+
+          if [ '${{ matrix.snapshot.stack }}' = '1.9' ]; then
+            cat <<'EOF' >>stack.yaml
+          package-indices:
+          - name: Hackage
+            download-prefix: https://hackage.haskell.org/package/
+            http: https://hackage.haskell.org/01-index.tar.gz
+          EOF
+          fi
       # We hide some stuff that's part of Prelude in new versions and explicitly
       # import them from their respective modules instead, so that we can run on
       # old versions where Prelude doesn't have those symbols yet. However, that
