@@ -1,5 +1,11 @@
 # Revision history for data-findcycle
 
+## 0.1.2.1 -- 2026-09-16
+
+* Use a `newtype` rather than `data` in the implementation for `nivash`
+  finders.
+* Bump dependency bounds.
+
 ## 0.1.2.0 -- 2025-05-31
 
 * Correct unfortunate misspelling of "Nivasch" as "Nivash".
