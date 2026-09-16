@@ -48,7 +48,7 @@ test-suite data-findcycle-test
     build-depends:
         base,
         data-findcycle,
-        QuickCheck >= 2.7 && < 2.16,
+        QuickCheck >= 2.7 && < 2.20,
         primes >= 0.2 && < 0.3,
         tasty >= 0.10 && < 1.6,
         tasty-quickcheck >= 0.8 && < 0.12
