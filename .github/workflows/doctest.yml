@@ -7,6 +7,6 @@ jobs:
       - uses: actions/checkout@v5
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: 9.12
+          ghc-version: 9.14
       - run: cabal install doctest
       - run: cabal repl --with-repl=doctest --build-depends='finite-typelits >= 0.2'
