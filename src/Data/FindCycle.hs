@@ -348,7 +348,7 @@ brent = CycleFinder brent'
 class NivaschSt st m where
     checkSt :: (Ord a) => a -> Int -> st a -> m (Either Int (st a))
 
-data NivaschStack a = NivaschStack [(a, Int)]
+newtype NivaschStack a = NivaschStack [(a, Int)]
 
 instance (Monad m) => NivaschSt NivaschStack m where
     {-# INLINE checkSt #-}
