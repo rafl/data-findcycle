@@ -8,6 +8,7 @@ jobs:
         ghc:
           - version: latest-nightly
             cabal-args: --allow-newer
+          - version: '9.14'
           - version: '9.12'
           - version: '9.10'
           - version: '9.8'
